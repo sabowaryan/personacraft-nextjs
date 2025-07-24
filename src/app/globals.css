@@ -1,28 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   * {
-    @apply border-neutral-200;
+    border-color: theme(colors.neutral.200);
   }
   
   html {
-    @apply scroll-smooth;
+    scroll-behavior: smooth;
   }
   
   body {
-    @apply bg-neutral-50 text-neutral-900 font-sans antialiased;
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    background: linear-gradient(135deg, theme(colors.neutral.50) 0%, theme(colors.neutral.200) 100%);
     min-height: 100vh;
+    font-family: theme(fontFamily.sans);
+    color: theme(colors.neutral.900);
+    -webkit-font-smoothing: antialiased;
   }
 }
 
 @layer components {
   /* Boutons */
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-medium px-6 py-3 rounded-xl transition-all duration-200 shadow-soft hover:shadow-medium focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    @apply bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-medium px-6 py-3 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .btn-primary:hover {
+    box-shadow: var(--shadow-medium);
   }
 
   .btn-secondary {
@@ -39,15 +47,24 @@
 
   /* Cartes */
   .card {
-    @apply bg-white rounded-2xl shadow-soft border border-neutral-200 p-6 transition-all duration-200;
+    @apply bg-white rounded-2xl border border-neutral-200 p-6 transition-all duration-200;
+    box-shadow: var(--shadow-soft);
   }
 
   .card-hover {
-    @apply hover:shadow-medium hover:-translate-y-1;
+    @apply hover:-translate-y-1;
+  }
+
+  .card-hover:hover {
+    box-shadow: var(--shadow-medium);
   }
 
   .card-interactive {
-    @apply cursor-pointer hover:shadow-medium hover:-translate-y-1 hover:border-primary-200;
+    @apply cursor-pointer hover:-translate-y-1 hover:border-primary-200;
+  }
+
+  .card-interactive:hover {
+    box-shadow: var(--shadow-medium);
   }
 
   /* Champs de saisie */
@@ -145,7 +162,7 @@
   }
 
   .bg-gradient-primary {
-    background: linear-gradient(135deg, #8b5cf6 0%, #0ea5e9 100%);
+    background: linear-gradient(135deg, theme(colors.primary.600) 0%, theme(colors.secondary.500) 100%);
   }
 
   .glass-effect {
@@ -171,7 +188,7 @@
   }
 
   .loading-dots::after {
-    content: '';
+    content: ".";
     animation: dots 1.5s steps(5, end) infinite;
   }
 
@@ -209,6 +226,16 @@
 }
 
 /* Keyframes personnalisées */
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
 @keyframes dots {
   0%, 20% {
     color: rgba(0,0,0,0);
@@ -233,4 +260,5 @@
       .5em 0 0 black;
   }
 }
+
 

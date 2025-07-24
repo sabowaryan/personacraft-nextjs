@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-interface PersonaData {
+interface Persona {
   id: string;
   name: string;
   age: number;
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generatePersonasWithGemini(brief: string): Promise<PersonaData[]> {
+async function generatePersonasWithGemini(brief: string): Promise<Persona[]> {
   const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
   const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
@@ -123,7 +123,7 @@ R√©ponds uniquement avec un tableau JSON valide de 2 personas, sans texte suppl√
   }
 }
 
-async function enrichWithQloo(personas: PersonaData[]): Promise<PersonaData[]> {
+async function enrichWithQloo(personas: Persona[]): Promise<Persona[]> {
   const QLOO_API_KEY = process.env.QLOO_API_KEY;
   const QLOO_API_URL = process.env.QLOO_API_URL || 'https://hackathon.api.qloo.com';
 
@@ -230,7 +230,7 @@ function getAgeRange(age: number): string {
   return '55-64';
 }
 
-function generateFallbackPersonas(): PersonaData[] {
+function generateFallbackPersonas(): Persona[] {
   return [
     {
       id: `persona_${Date.now()}_0`,

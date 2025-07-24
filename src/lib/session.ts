@@ -364,7 +364,7 @@ export const exportToCSV = (personas: PersonaData[]) => {
       'Nom', 'Âge', 'Profession', 'Localisation', 'Score qualité', 'Date de création'
     ]
     const rows = personas.map(p => [
-      p.name, p.age.toString(), p.profession || p.occupation, p.location, 
+      p.name, p.age.toString(), p.occupation, p.location, 
       p.qualityScore.toString(), new Date(p.createdAt).toLocaleDateString('fr-FR')
     ])
     const csvContent = [headers.join(','), ...rows.map(row => row.map(v => `"${v}"`).join(','))].join('\n')

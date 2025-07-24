@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { PersonaData } from '@/types';
+import { Persona } from '@/types';
 import { 
   savePersonas, 
   loadPersonas, 
@@ -13,9 +13,9 @@ import {
 
 export default function Dashboard() {
   const [brief, setBrief] = useState('');
-  const [personas, setPersonas] = useState<PersonaData[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedPersona, setSelectedPersona] = useState<PersonaData | null>(null);
+  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [sessionStats, setSessionStats] = useState({ count: 0, startTime: new Date() });
   const [sortBy, setSortBy] = useState<'score' | 'name' | 'age'>('score');
   const [filterBy, setFilterBy] = useState<'all' | 'high' | 'medium' | 'low'>('all');
@@ -40,7 +40,7 @@ export default function Dashboard() {
       });
 
       if (response.ok) {
-        const newPersonas = await response.json();
+        const { personas: newPersonas } = await response.json();
         const updatedPersonas = [...personas, ...newPersonas];
         setPersonas(updatedPersonas);
         savePersonas(updatedPersonas);
@@ -231,7 +231,7 @@ export default function Dashboard() {
                         <div className="flex-1">
                           <h3 className="persona-name">{persona.name}</h3>
                           <p className="persona-details">
-                            {persona.age} ans • {persona.profession} • {persona.location}
+                            {persona.age} ans • {persona.occupation} • {persona.location}
                           </p>
                         </div>
                         <div className="persona-score">
@@ -261,16 +261,18 @@ export default function Dashboard() {
                             <div>
                               <h4 className="font-medium text-neutral-900 mb-3">Démographiques</h4>
                               <div className="space-y-2 text-sm">
-                                <div><span className="text-neutral-600">Revenus:</span> {persona.income}</div>
-                                <div><span className="text-neutral-600">Éducation:</span> {persona.education}</div>
-                                <div><span className="text-neutral-600">Situation:</span> {persona.familyStatus}</div>
+                                <div><span className="text-neutral-600">Revenus:</span> {persona.demographics.income}</div>
+                                <div><span className="text-neutral-600">Éducation:</span> {persona.demographics.education}</div>
+                                <div><span className="text-neutral-600">Situation:</span> {persona.demographics.familyStatus}</div>
                               </div>
                             </div>
                             <div>
-                              <h4 className="font-medium text-neutral-900 mb-3">Données Culturelles</h4>
+                              <h4 className="font-medium text-neutral-900 mb-3">Psychographiques</h4>
                               <div className="space-y-2 text-sm">
-                                <div><span className="text-neutral-600">Musique:</span> {persona.culturalData?.music}</div>
-                                <div><span className="text-neutral-600">Marques:</span> {persona.culturalData?.brands}</div>
+                                <div><span className="text-neutral-600">Personnalité:</span> {persona.psychographics.personality.join(", ")}</div>
+                                <div><span className="text-neutral-600">Valeurs:</span> {persona.psychographics.values.join(", ")}</div>
+                                <div><span className="text-neutral-600">Intérêts:</span> {persona.psychographics.interests.join(", ")}</div>
+                                <div><span className="text-neutral-600">Style de vie:</span> {persona.psychographics.lifestyle}</div>
                               </div>
                             </div>
                           </div>
@@ -295,7 +297,7 @@ export default function Dashboard() {
 
                           <div className="mt-6">
                             <h4 className="font-medium text-neutral-900 mb-3">Insights Marketing</h4>
-                            <p className="text-sm text-neutral-700">{persona.marketingInsights}</p>
+                            <p className="text-sm text-neutral-700">{persona.marketingInsights.messagingTone}</p>
                           </div>
 
                           <div className="mt-6 flex space-x-3">
