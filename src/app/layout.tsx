@@ -1,15 +1,55 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const poppins = Poppins({ 
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-poppins',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'PersonaCraft - AI-Powered Marketing Persona Generation',
-  description: 'Generate detailed, authentic marketing personas using Google Gemini and Qloo Taste AI™. Transform your marketing brief into actionable personas in under 60 seconds.',
-  keywords: ['marketing personas', 'AI', 'Google Gemini', 'Qloo', 'marketing intelligence'],
+  description: 'Créez des personas marketing détaillés et précis grâce à l\'intelligence artificielle. Générez des insights culturels avec Google Gemini et Qloo Taste AI.',
+  keywords: 'personas marketing, intelligence artificielle, Gemini, Qloo, marketing digital, analyse d\'audience',
   authors: [{ name: 'PersonaCraft Team' }],
-  viewport: 'width=device-width, initial-scale=1',
+  creator: 'PersonaCraft',
+  publisher: 'PersonaCraft',
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    title: 'PersonaCraft - AI-Powered Marketing Persona Generation',
+    description: 'Créez des personas marketing détaillés et précis grâce à l\'intelligence artificielle.',
+    siteName: 'PersonaCraft',
+    locale: 'fr_FR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'PersonaCraft - AI-Powered Marketing Persona Generation',
+    description: 'Créez des personas marketing détaillés et précis grâce à l\'intelligence artificielle.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 }
 
 export default function RootLayout({
@@ -18,11 +58,13 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="fr" className="scroll-smooth">
+    <html lang="fr" className={`${inter.variable} ${poppins.variable} scroll-smooth`}>
+      <head>
+        <meta name="theme-color" content="#8b5cf6" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+      </head>
       <body className={`${inter.className} antialiased`}>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-          {children}
-        </div>
+        {children}
       </body>
     </html>
   )

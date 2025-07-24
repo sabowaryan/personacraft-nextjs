@@ -332,3 +332,70 @@ export const useLocalStorage = <T>(key: string, initialValue: T) => {
   return [storedValue, setValue] as const
 }
 
+// Fonctions d'export simples pour compatibilité
+export const getSession = () => SessionManager.getSession()
+export const updateSession = (updates: Partial<SessionData>) => SessionManager.updateSession(updates)
+export const createSession = () => SessionManager.createSession()
+export const savePersonas = (personas: PersonaData[]) => PersonaManager.savePersonas(personas)
+export const getPersonas = () => PersonaManager.getPersonas()
+export const loadPersonas = () => PersonaManager.getPersonas()
+export const exportToJSON = (personas: PersonaData[]) => {
+  if (personas.length === 1) {
+    PersonaManager.exportPersona(personas[0], 'json')
+  } else {
+    const content = JSON.stringify(personas, null, 2)
+    const blob = new Blob([content], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'personas.json'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+}
+export const exportToCSV = (personas: PersonaData[]) => {
+  if (personas.length === 1) {
+    PersonaManager.exportPersona(personas[0], 'csv')
+  } else {
+    // Export multiple personas to CSV
+    const headers = [
+      'Nom', 'Âge', 'Profession', 'Localisation', 'Score qualité', 'Date de création'
+    ]
+    const rows = personas.map(p => [
+      p.name, p.age.toString(), p.profession || p.occupation, p.location, 
+      p.qualityScore.toString(), new Date(p.createdAt).toLocaleDateString('fr-FR')
+    ])
+    const csvContent = [headers.join(','), ...rows.map(row => row.map(v => `"${v}"`).join(','))].join('\n')
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'personas.csv'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+}
+export const getSessionStats = () => {
+  const session = SessionManager.getSession()
+  if (session) {
+    return {
+      count: session.totalPersonas,
+      startTime: new Date(session.createdAt)
+    }
+  }
+  return {
+    count: 0,
+    startTime: new Date()
+  }
+}
+export const saveSessionStats = (stats: { count: number; startTime: Date }) => {
+  SessionManager.updateSession({
+    totalPersonas: stats.count
+  })
+}
+
