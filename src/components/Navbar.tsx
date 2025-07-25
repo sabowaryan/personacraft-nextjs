@@ -104,6 +104,8 @@ export default function Navbar() {
                 activeSection = 'contact';
             } else if (pathname.startsWith('/dashboard')) {
                 activeSection = 'default';
+            } else if (pathname === '/404' || pathname === '/403' || pathname === '/maintenance' || pathname.startsWith('/error')) {
+                activeSection = 'default';
             } else if (pathname === '/') {
                 // Page d'accueil - détecter les sections par scroll
                 const sections = ['hero', 'features', 'pricing', 'testimonials', 'contact'];
