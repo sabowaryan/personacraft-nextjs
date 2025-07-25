@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import { StackProvider, StackTheme } from "@stackframe/stack";
+import { stackServerApp } from "../stack";
 import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 import ConditionalLayout from '@/components/ConditionalLayout'
@@ -86,11 +88,11 @@ export default function RootLayout({
         <meta name="msapplication-TileImage" content="/assets/ms-icon-144x144.png" />
         <meta name="theme-color" content="#7C3AED" />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.className} antialiased`}><StackProvider app={stackServerApp}><StackTheme>
         <ConditionalLayout>
           {children}
         </ConditionalLayout>
-      </body>
+      </StackTheme></StackProvider></body>
     </html>
   )
 }
