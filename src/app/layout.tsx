@@ -60,6 +60,40 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const customTheme = {
+    light: {
+      primary: '#7C3AED', // Purple-600
+      primaryForeground: '#FFFFFF',
+      secondary: '#F3F4F6', // Gray-100
+      secondaryForeground: '#374151', // Gray-700
+      background: '#FFFFFF',
+      foreground: '#111827', // Gray-900
+      card: '#FFFFFF',
+      cardForeground: '#111827',
+      border: '#E5E7EB', // Gray-200
+      input: '#D1D5DB', // Gray-300
+      ring: '#7C3AED', // Purple-600
+      accent: '#3B82F6', // Blue-500
+      accentForeground: '#FFFFFF',
+    },
+    dark: {
+      primary: '#8B5CF6', // Purple-500
+      primaryForeground: '#FFFFFF',
+      secondary: '#374151', // Gray-700
+      secondaryForeground: '#F9FAFB', // Gray-50
+      background: '#111827', // Gray-900
+      foreground: '#F9FAFB', // Gray-50
+      card: '#1F2937', // Gray-800
+      cardForeground: '#F9FAFB',
+      border: '#374151', // Gray-700
+      input: '#4B5563', // Gray-600
+      ring: '#8B5CF6', // Purple-500
+      accent: '#3B82F6', // Blue-500
+      accentForeground: '#FFFFFF',
+    },
+    radius: '12px',
+  };
+
   return (
     <html lang="fr" className={`${inter.variable} ${poppins.variable} scroll-smooth`}>
       <head>
@@ -88,11 +122,15 @@ export default function RootLayout({
         <meta name="msapplication-TileImage" content="/assets/ms-icon-144x144.png" />
         <meta name="theme-color" content="#7C3AED" />
       </head>
-      <body className={`${inter.className} antialiased`}><StackProvider app={stackServerApp}><StackTheme>
-        <ConditionalLayout>
-          {children}
-        </ConditionalLayout>
-      </StackTheme></StackProvider></body>
+      <body className={`${inter.className} antialiased`}>
+        <StackProvider app={stackServerApp}>
+          <StackTheme theme={customTheme}>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+          </StackTheme>
+        </StackProvider>
+      </body>
     </html>
   )
 }
