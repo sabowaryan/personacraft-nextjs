@@ -36,9 +36,9 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var prisma_1 = require("../generated/prisma");
+var client_1 = require("@prisma/client");
 var pricingService_1 = require("../src/services/pricingService");
-var prisma = new prisma_1.PrismaClient();
+var prisma = new client_1.PrismaClient();
 function main() {
     return __awaiter(this, void 0, void 0, function () {
         var plans, _i, plans_1, plan, superAdminRole, allPermissions, _a, allPermissions_1, permission;
@@ -177,4 +177,3 @@ main()
         }
     });
 }); });
-console.log("Seed script finished successfully.");
