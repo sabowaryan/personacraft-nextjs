@@ -99,10 +99,37 @@ export default function PersonasPage() {
   const [filterBy, setFilterBy] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [sortBy, setSortBy] = useState<'score' | 'name' | 'age'>('score');
   const [showModal, setShowModal] = useState(false);
+  const [templateData, setTemplateData] = useState(null);
+  const [goToLastStep, setGoToLastStep] = useState(false);
 
-  // Charger les personas au montage
+  // Charger les personas au montage et vérifier les données de template
   useEffect(() => {
     loadPersonas();
+    
+    // Vérifier si on doit ouvrir automatiquement le modal avec des données de template
+    const autoOpenModal = sessionStorage.getItem('autoOpenModal');
+    const templateDataStr = sessionStorage.getItem('templateData');
+    const shouldGoToLastStep = sessionStorage.getItem('goToLastStep');
+    
+    if (autoOpenModal === 'true' && templateDataStr) {
+      try {
+        const parsedTemplateData = JSON.parse(templateDataStr);
+        setTemplateData(parsedTemplateData);
+        setGoToLastStep(shouldGoToLastStep === 'true');
+        setShowModal(true);
+        
+        // Nettoyer le sessionStorage après utilisation
+        sessionStorage.removeItem('autoOpenModal');
+        sessionStorage.removeItem('templateData');
+        sessionStorage.removeItem('goToLastStep');
+      } catch (error) {
+        console.error('Erreur lors du parsing des données de template:', error);
+        // Nettoyer en cas d'erreur
+        sessionStorage.removeItem('autoOpenModal');
+        sessionStorage.removeItem('templateData');
+        sessionStorage.removeItem('goToLastStep');
+      }
+    }
   }, [loadPersonas]);
 
   // Filtrage et tri optimisé avec useMemo
@@ -672,9 +699,15 @@ export default function PersonasPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-50">
-              <h2 className="text-xl font-bold text-neutral-900">Créer des Personas</h2>
+              <h2 className="text-xl font-bold text-neutral-900">
+                {templateData ? 'Template - Créer des Personas' : 'Créer des Personas'}
+              </h2>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setTemplateData(null);
+                  setGoToLastStep(false);
+                }}
                 className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
               >
                 <svg className="w-6 h-6 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -683,7 +716,12 @@ export default function PersonasPage() {
               </button>
             </div>
             <div className="p-6">
-              <BriefForm onSubmit={generatePersonas} isLoading={isGenerating} />
+              <BriefForm 
+                onSubmit={generatePersonas} 
+                isLoading={isGenerating}
+                templateData={templateData}
+                goToLastStep={goToLastStep}
+              />
             </div>
           </div>
         </div>

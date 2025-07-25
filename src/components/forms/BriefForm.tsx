@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Building2, Target, Lightbulb, AlertTriangle, Plus, Sparkles, Users, Globe, MapPin, Calendar, History } from 'lucide-react';
 import { useSession } from '@/hooks/use-session';
 
-interface BriefFormData {
+export interface BriefFormData {
     brief: string;
     ageRange: {
         min: number;
@@ -20,6 +20,8 @@ interface BriefFormData {
 interface BriefFormProps {
     onSubmit: (data: BriefFormData) => void;
     isLoading?: boolean;
+    templateData?: BriefFormData | null;
+    goToLastStep?: boolean;
 }
 
 const PREDEFINED_INTERESTS = [
@@ -62,7 +64,7 @@ const PREDEFINED_VALUES = [
 
 
 
-export default function BriefForm({ onSubmit, isLoading = false }: BriefFormProps) {
+export default function BriefForm({ onSubmit, isLoading = false, templateData = null, goToLastStep = false }: BriefFormProps) {
     const { session, savedBriefs, saveBrief, deleteBrief } = useSession();
     
     const [formData, setFormData] = useState<BriefFormData>({
@@ -86,6 +88,16 @@ export default function BriefForm({ onSubmit, isLoading = false }: BriefFormProp
             setFormData(prev => ({ ...prev, language: session.preferences.language }));
         }
     }, [session?.preferences.language]);
+
+    // Initialiser avec les données de template si disponibles
+    useEffect(() => {
+        if (templateData) {
+            setFormData(templateData);
+        }
+        if (goToLastStep) {
+            setActiveStep(3);
+        }
+    }, [templateData, goToLastStep]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -494,14 +506,14 @@ export default function BriefForm({ onSubmit, isLoading = false }: BriefFormProp
                                                     value={newInterest}
                                                     onChange={(e) => setNewInterest(e.target.value)}
                                                     placeholder="Ex: Sport, Technologie..."
-                                                    className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all duration-200 placeholder:text-slate-400 text-sm"
+                                                    className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all duration-200 placeholder:text-slate-400 text-sm"
                                                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomInterest())}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={addCustomInterest}
                                                     disabled={!newInterest.trim()}
-                                                    className="w-full sm:w-auto px-2 sm:px-4 py-2.5 sm:py-3 bg-secondary text-white rounded-xl hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium shrink-0"
+                                                    className="w-full sm:w-auto sm:max-w-[120px] px-3 sm:px-4 py-2.5 sm:py-3 bg-secondary text-white rounded-xl hover:bg-secondary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium flex-shrink-0"
                                                 >
                                                     <Plus className="w-4 h-4 flex-shrink-0" />
                                                     <span className="hidden sm:inline">Ajouter</span>
@@ -574,14 +586,14 @@ export default function BriefForm({ onSubmit, isLoading = false }: BriefFormProp
                                                     value={newValue}
                                                     onChange={(e) => setNewValue(e.target.value)}
                                                     placeholder="Ex: Authenticité, Innovation..."
-                                                    className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success/20 focus:border-success transition-all duration-200 placeholder:text-slate-400 text-sm"
+                                                    className="flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-success/20 focus:border-success transition-all duration-200 placeholder:text-slate-400 text-sm"
                                                     onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomValue())}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={addCustomValue}
                                                     disabled={!newValue.trim()}
-                                                    className="w-full sm:w-auto px-2 sm:px-4 py-2.5 sm:py-3 bg-success text-white rounded-xl hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium shrink-0"
+                                                    className="w-full sm:w-auto sm:max-w-[120px] px-3 sm:px-4 py-2.5 sm:py-3 bg-success text-white rounded-xl hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-1 sm:gap-2 text-xs sm:text-sm font-medium flex-shrink-0"
                                                 >
                                                     <Plus className="w-4 h-4 flex-shrink-0" />
                                                     <span className="hidden sm:inline">Ajouter</span>
