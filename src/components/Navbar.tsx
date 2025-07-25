@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser } from '@stackframe/stack';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -83,8 +84,8 @@ export default function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     
     // Simuler l'état de connexion - à remplacer par votre logique d'authentification
-    const isLoggedIn = pathname.startsWith('/dashboard');
-    const user = isLoggedIn ? { name: 'John Doe', email: 'john@example.com', avatar: null } : null;
+    const user = useUser(); // Utiliser le hook useUser de Stack Auth
+    const isLoggedIn = !!user; // L'utilisateur est connecté si 'user' existe
 
     // Hook pour détecter le scroll et les sections
     useEffect(() => {
@@ -229,11 +230,11 @@ export default function Navbar() {
                                         {user.avatar ? (
                                             <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
                                         ) : (
-                                            user.name.charAt(0).toUpperCase()
+                                            user.firstName ? user.firstName.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()
                                         )}
                                     </div>
                                     <span className={`hidden md:block font-medium ${currentTheme.text}`}>
-                                        {user.name}
+                                        {user.firstName || user.email}
                                     </span>
                                     <svg className={`w-4 h-4 ${currentTheme.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
