@@ -32,6 +32,8 @@ export interface Persona {
   age: number
   occupation: string
   location: string
+  bio: string
+  quote: string
   demographics: Demographics
   psychographics: Psychographics
   culturalData: CulturalData

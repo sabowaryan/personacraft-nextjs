@@ -1,330 +1,131 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Persona } from '@/types';
-import { 
-  savePersonas, 
-  loadPersonas, 
-  exportToJSON, 
-  exportToCSV,
-  getSessionStats,
-  saveSessionStats
-} from '@/lib/session';
+import Link from 'next/link';
+import { usePersona } from '@/hooks/use-persona';
 
 export default function Dashboard() {
-  const [brief, setBrief] = useState('');
-  const [personas, setPersonas] = useState<Persona[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
+  const { personas } = usePersona();
   const [sessionStats, setSessionStats] = useState({ count: 0, startTime: new Date() });
-  const [sortBy, setSortBy] = useState<'score' | 'name' | 'age'>('score');
-  const [filterBy, setFilterBy] = useState<'all' | 'high' | 'medium' | 'low'>('all');
+  
+  // Calculer le nombre de personas
+  const personasCount = personas.length;
 
   useEffect(() => {
-    const loadedPersonas = loadPersonas();
-    setPersonas(loadedPersonas);
-    
-    const stats = getSessionStats();
-    setSessionStats(stats);
+    // Simuler les stats de session
+    const stored = localStorage.getItem('sessionCount');
+    setSessionStats({
+      count: stored ? parseInt(stored) : 0,
+      startTime: new Date()
+    });
   }, []);
 
-  const generatePersonas = async () => {
-    if (!brief.trim()) return;
-    
-    setIsGenerating(true);
-    try {
-      const response = await fetch('/api/generate-personas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief })
-      });
-
-      if (response.ok) {
-        const { personas: newPersonas } = await response.json();
-        const updatedPersonas = [...personas, ...newPersonas];
-        setPersonas(updatedPersonas);
-        savePersonas(updatedPersonas);
-        
-        const newStats = {
-          count: sessionStats.count + newPersonas.length,
-          startTime: sessionStats.startTime
-        };
-        setSessionStats(newStats);
-        saveSessionStats(newStats);
-        
-        setBrief('');
-      }
-    } catch (error) {
-      console.error('Erreur lors de la génération:', error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const deletePersona = (id: string) => {
-    const updatedPersonas = personas.filter(p => p.id !== id);
-    setPersonas(updatedPersonas);
-    savePersonas(updatedPersonas);
-    setSelectedPersona(null);
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'badge-success';
-    if (score >= 75) return 'badge-warning';
-    return 'badge-error';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 90) return 'Excellent';
-    if (score >= 75) return 'Bon';
-    return 'Moyen';
-  };
-
-  const filteredPersonas = personas.filter(persona => {
-    if (filterBy === 'all') return true;
-    if (filterBy === 'high') return persona.qualityScore >= 90;
-    if (filterBy === 'medium') return persona.qualityScore >= 75 && persona.qualityScore < 90;
-    if (filterBy === 'low') return persona.qualityScore < 75;
-    return true;
-  });
-
-  const sortedPersonas = [...filteredPersonas].sort((a, b) => {
-    if (sortBy === 'score') return b.qualityScore - a.qualityScore;
-    if (sortBy === 'name') return a.name.localeCompare(b.name);
-    if (sortBy === 'age') return a.age - b.age;
-    return 0;
-  });
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 to-neutral-100">
-      {/* Navigation */}
-      <nav className="nav-header">
-        <div className="container-main py-4">
-          <div className="flex items-center justify-between">
-            <div className="nav-brand">
-              <div className="nav-logo">PC</div>
-              <div>
-                <h1 className="nav-title">PersonaCraft</h1>
-                <p className="text-sm text-neutral-600">AI-Powered Marketing Persona Generation</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-neutral-600">
-                Session: {sessionStats.count} personas créés
-              </div>
-              <button
-                onClick={() => exportToJSON(personas)}
-                className="btn-outline"
-                disabled={personas.length === 0}
-              >
-                Exporter Tout
-              </button>
-            </div>
-          </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-8">
+      {/* Welcome Section */}
+      <div className="text-center py-12">
+        <div className="w-24 h-24 bg-gradient-to-br from-persona-violet to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-6">
+          <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" />
+          </svg>
         </div>
-      </nav>
+        <h1 className="text-3xl font-bold text-slate-900 mb-4">
+          Bienvenue sur PersonaCraft
+        </h1>
+        <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8">
+          Créez des personas marketing détaillés et précis pour mieux comprendre votre audience cible
+        </p>
+        <Link
+          href="/dashboard/personas"
+          className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-persona-violet to-purple-600 text-white rounded-xl font-semibold text-lg transition-all duration-200 hover:shadow-lg hover:shadow-persona-violet/25 transform hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Créer mes personas
+        </Link>
+      </div>
 
-      <div className="container-main py-8">
-        <div className="grid-dashboard">
-          {/* Section Génération */}
-          <div className="lg:col-span-1">
-            <div className="card space-y-6">
-              <div>
-                <h2 className="section-subtitle">Générer des Personas</h2>
-                <p className="text-sm text-neutral-600 mb-4">
-                  Décrivez votre produit, votre cible, vos objectifs marketing...
-                </p>
-              </div>
+      {/* Quick Navigation Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Link
+          href="/dashboard/personas"
+          className="bg-white rounded-xl border border-neutral-200 p-8 hover:border-primary-300 hover:shadow-lg transition-all duration-200 group text-center"
+        >
+          <div className="w-16 h-16 bg-primary-100 rounded-2xl flex items-center justify-center group-hover:bg-primary-200 transition-colors mx-auto mb-4">
+            <svg className="w-8 h-8 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-neutral-900 group-hover:text-primary-600 transition-colors mb-2">Personas</h3>
+          <p className="text-neutral-600 mb-4">Créez et gérez vos personas marketing</p>
+          <div className="inline-flex items-center px-3 py-1 bg-primary-50 text-primary-700 rounded-full text-sm font-medium">
+            {personasCount} créés
+          </div>
+        </Link>
 
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="brief" className="block text-sm font-medium text-neutral-700 mb-2">
-                    Brief Marketing
-                  </label>
-                  <textarea
-                    id="brief"
-                    value={brief}
-                    onChange={(e) => setBrief(e.target.value)}
-                    placeholder="Décrivez votre produit, votre cible, vos objectifs marketing..."
-                    className="textarea-field h-32"
-                    disabled={isGenerating}
-                  />
-                </div>
+        <Link
+          href="/dashboard/templates"
+          className="bg-white rounded-xl border border-neutral-200 p-8 hover:border-blue-300 hover:shadow-lg transition-all duration-200 group text-center"
+        >
+          <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center group-hover:bg-blue-200 transition-colors mx-auto mb-4">
+            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-neutral-900 group-hover:text-blue-600 transition-colors mb-2">Templates</h3>
+          <p className="text-neutral-600 mb-4">Modèles prêts à utiliser</p>
+          <div className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium">
+            Bientôt disponible
+          </div>
+        </Link>
 
-                <button
-                  onClick={generatePersonas}
-                  disabled={!brief.trim() || isGenerating}
-                  className="btn-primary w-full"
-                >
-                  {isGenerating ? (
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="loading-spinner"></div>
-                      <span>Génération en cours...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-center space-x-2">
-                      <span>🚀</span>
-                      <span>Générer des Personas</span>
-                    </div>
-                  )}
-                </button>
-              </div>
+        <Link
+          href="/dashboard/analytics"
+          className="bg-white rounded-xl border border-neutral-200 p-8 hover:border-green-300 hover:shadow-lg transition-all duration-200 group text-center"
+        >
+          <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center group-hover:bg-green-200 transition-colors mx-auto mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-neutral-900 group-hover:text-green-600 transition-colors mb-2">Analytics</h3>
+          <p className="text-neutral-600 mb-4">Analysez vos données</p>
+          <div className="inline-flex items-center px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm font-medium">
+            Statistiques
+          </div>
+        </Link>
+      </div>
 
-              {/* Statistiques de Session */}
-              <div className="border-t border-neutral-200 pt-6">
-                <h3 className="text-lg font-medium text-neutral-900 mb-4">Statistiques de Session</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">Personas créés:</span>
-                    <span className="font-medium">{sessionStats.count}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-neutral-600">Session démarrée:</span>
-                    <span className="font-medium">
-                      {sessionStats.startTime.toLocaleDateString('fr-FR')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Session Stats */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-8">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Session Active</h2>
+          <p className="text-slate-600">Votre activité en temps réel</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-gradient-to-br from-persona-violet/10 to-purple-100/50 rounded-2xl p-6 text-center border border-persona-violet/20">
+            <div className="text-3xl font-bold text-persona-violet mb-2">{sessionStats.count}</div>
+            <div className="text-sm font-medium text-slate-700 mb-1">Personas Créés</div>
+            <div className="text-xs text-slate-500">Cette session</div>
           </div>
 
-          {/* Section Personas */}
-          <div className="lg:col-span-2">
-            <div className="card">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="section-subtitle mb-0">Mes Personas ({personas.length})</h2>
-                <div className="flex items-center space-x-3">
-                  <select
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value as any)}
-                    className="btn-outline text-sm"
-                  >
-                    <option value="all">Tous</option>
-                    <option value="high">Score élevé (90+)</option>
-                    <option value="medium">Score moyen (75-89)</option>
-                    <option value="low">Score faible (&lt;75)</option>
-                  </select>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
-                    className="btn-outline text-sm"
-                  >
-                    <option value="score">Trier par score</option>
-                    <option value="name">Trier par nom</option>
-                    <option value="age">Trier par âge</option>
-                  </select>
-                </div>
-              </div>
-
-              {personas.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🎯</div>
-                  <h3 className="text-lg font-medium text-neutral-900 mb-2">Aucun persona créé</h3>
-                  <p className="text-neutral-600">Commencez par générer vos premiers personas marketing</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {sortedPersonas.map((persona) => (
-                    <div key={persona.id} className="persona-card">
-                      <div className="persona-header">
-                        <div className="flex-1">
-                          <h3 className="persona-name">{persona.name}</h3>
-                          <p className="persona-details">
-                            {persona.age} ans • {persona.occupation} • {persona.location}
-                          </p>
-                        </div>
-                        <div className="persona-score">
-                          <div className={`badge ${getScoreColor(persona.qualityScore)} mb-2`}>
-                            Score: {persona.qualityScore}%
-                          </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => setSelectedPersona(selectedPersona?.id === persona.id ? null : persona)}
-                              className="btn-outline text-sm"
-                            >
-                              {selectedPersona?.id === persona.id ? 'Masquer' : 'Détails'}
-                            </button>
-                            <button
-                              onClick={() => deletePersona(persona.id)}
-                              className="btn-ghost text-error-600 hover:text-error-700 text-sm"
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedPersona?.id === persona.id && (
-                        <div className="mt-6 pt-6 border-t border-neutral-200 animate-slide-up">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                              <h4 className="font-medium text-neutral-900 mb-3">Démographiques</h4>
-                              <div className="space-y-2 text-sm">
-                                <div><span className="text-neutral-600">Revenus:</span> {persona.demographics.income}</div>
-                                <div><span className="text-neutral-600">Éducation:</span> {persona.demographics.education}</div>
-                                <div><span className="text-neutral-600">Situation:</span> {persona.demographics.familyStatus}</div>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-neutral-900 mb-3">Psychographiques</h4>
-                              <div className="space-y-2 text-sm">
-                                <div><span className="text-neutral-600">Personnalité:</span> {persona.psychographics.personality.join(", ")}</div>
-                                <div><span className="text-neutral-600">Valeurs:</span> {persona.psychographics.values.join(", ")}</div>
-                                <div><span className="text-neutral-600">Intérêts:</span> {persona.psychographics.interests.join(", ")}</div>
-                                <div><span className="text-neutral-600">Style de vie:</span> {persona.psychographics.lifestyle}</div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-6">
-                            <h4 className="font-medium text-neutral-900 mb-3">Points de Douleur</h4>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-neutral-700">
-                              {persona.painPoints.map((point, index) => (
-                                <li key={index}>{point}</li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <div className="mt-6">
-                            <h4 className="font-medium text-neutral-900 mb-3">Objectifs</h4>
-                            <ul className="list-disc list-inside space-y-1 text-sm text-neutral-700">
-                              {persona.goals.map((goal, index) => (
-                                <li key={index}>{goal}</li>
-                              ))}
-                            </ul>
-                          </div>
-
-                          <div className="mt-6">
-                            <h4 className="font-medium text-neutral-900 mb-3">Insights Marketing</h4>
-                            <p className="text-sm text-neutral-700">{persona.marketingInsights.messagingTone}</p>
-                          </div>
-
-                          <div className="mt-6 flex space-x-3">
-                            <button
-                              onClick={() => exportToJSON([persona])}
-                              className="btn-secondary"
-                            >
-                              Exporter JSON
-                            </button>
-                            <button
-                              onClick={() => exportToCSV([persona])}
-                              className="btn-secondary"
-                            >
-                              Exporter CSV
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-6 text-center border border-blue-200">
+            <div className="text-3xl font-bold text-blue-600 mb-2">
+              {Math.floor((new Date().getTime() - sessionStats.startTime.getTime()) / (1000 * 60))}
             </div>
+            <div className="text-sm font-medium text-slate-700 mb-1">Minutes</div>
+            <div className="text-xs text-slate-500">Temps actif</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 text-center border border-green-200">
+            <div className="text-3xl font-bold text-green-600 mb-2">{personasCount}</div>
+            <div className="text-sm font-medium text-slate-700 mb-1">Total</div>
+            <div className="text-xs text-slate-500">Personas sauvegardés</div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

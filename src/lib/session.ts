@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Persona } from '@/types'
+import { validateAndCleanPersonas, validateAndCleanPersona } from './persona-utils'
 
 // Utilitaires pour la gestion des sessions et persistance locale
 
@@ -13,41 +15,6 @@ export interface SessionData {
     language: 'fr' | 'en'
     autoSave: boolean
   }
-}
-
-export interface PersonaData {
-  id: string
-  name: string
-  age: number
-  occupation: string
-  location: string
-  demographics: {
-    income: string
-    education: string
-    familyStatus: string
-  }
-  psychographics: {
-    personality: string[]
-    values: string[]
-    interests: string[]
-    lifestyle: string
-  }
-  culturalData: {
-    music: string[]
-    movies: string[]
-    brands: string[]
-    socialMedia: string[]
-  }
-  painPoints: string[]
-  goals: string[]
-  marketingInsights: {
-    preferredChannels: string[]
-    messagingTone: string
-    buyingBehavior: string
-  }
-  qualityScore: number
-  createdAt: string
-  brief?: string
 }
 
 const SESSION_KEY = 'personacraft_session'
@@ -78,9 +45,38 @@ export class SessionManager {
     
     try {
       const sessionData = localStorage.getItem(SESSION_KEY)
-      return sessionData ? JSON.parse(sessionData) : null
+      if (!sessionData || sessionData.trim() === '') return null
+      
+      // Vérifier que c'est un JSON valide avant de parser
+      const trimmed = sessionData.trim()
+      if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+        console.warn('Session data format invalide, suppression')
+        localStorage.removeItem(SESSION_KEY)
+        return null
+      }
+      
+      // Tentative de parsing avec gestion d'erreur robuste
+      let parsed
+      try {
+        parsed = JSON.parse(trimmed)
+      } catch (parseError) {
+        console.error('Erreur de parsing JSON pour la session:', parseError)
+        localStorage.removeItem(SESSION_KEY)
+        return null
+      }
+      
+      // Valider la structure de base
+      if (!parsed || typeof parsed !== 'object' || !parsed.id) {
+        console.warn('Session data invalide, création d\'une nouvelle session')
+        localStorage.removeItem(SESSION_KEY)
+        return null
+      }
+      
+      return parsed
     } catch (error) {
       console.error('Erreur lors de la récupération de la session:', error)
+      // Nettoyer le localStorage corrompu
+      localStorage.removeItem(SESSION_KEY)
       return null
     }
   }
@@ -117,45 +113,78 @@ export class SessionManager {
 
 // Gestion des personas
 export class PersonaManager {
-  static getPersonas(): PersonaData[] {
+  static getPersonas(): Persona[] {
     if (typeof window === 'undefined') return []
     
     try {
       const personasData = localStorage.getItem(PERSONAS_KEY)
-      return personasData ? JSON.parse(personasData) : []
+      if (!personasData || personasData.trim() === '') return []
+      
+      // Vérifier que c'est un JSON valide avant de parser
+      const trimmed = personasData.trim()
+      if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+        console.warn('Personas data format invalide, suppression')
+        localStorage.removeItem(PERSONAS_KEY)
+        return []
+      }
+      
+      // Tentative de parsing avec gestion d'erreur robuste
+      let rawPersonas
+      try {
+        rawPersonas = JSON.parse(trimmed)
+      } catch (parseError) {
+        console.error('Erreur de parsing JSON pour les personas:', parseError)
+        localStorage.removeItem(PERSONAS_KEY)
+        return []
+      }
+      
+      if (!Array.isArray(rawPersonas)) {
+        console.warn('Données personas invalides, réinitialisation')
+        localStorage.removeItem(PERSONAS_KEY)
+        return []
+      }
+      
+      // Valider et nettoyer les personas lors du chargement
+      return validateAndCleanPersonas(rawPersonas)
     } catch (error) {
       console.error('Erreur lors de la récupération des personas:', error)
+      // Nettoyer le localStorage corrompu
+      localStorage.removeItem(PERSONAS_KEY)
       return []
     }
   }
 
-  static savePersonas(personas: PersonaData[]): void {
+  static savePersonas(personas: Persona[]): void {
     if (typeof window === 'undefined') return
     
     try {
-      localStorage.setItem(PERSONAS_KEY, JSON.stringify(personas))
+      // Valider et nettoyer les personas avant la sauvegarde
+      const cleanedPersonas = validateAndCleanPersonas(personas)
+      localStorage.setItem(PERSONAS_KEY, JSON.stringify(cleanedPersonas))
       
       // Mettre à jour les stats de session
       SessionManager.updateSession({
-        totalPersonas: personas.length
+        totalPersonas: cleanedPersonas.length
       })
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des personas:', error)
     }
   }
 
-  static addPersona(persona: PersonaData): void {
+  static addPersona(persona: Persona): void {
     const personas = this.getPersonas()
-    personas.push(persona)
+    const cleanedPersona = validateAndCleanPersona(persona)
+    personas.push(cleanedPersona)
     this.savePersonas(personas)
   }
 
-  static updatePersona(personaId: string, updates: Partial<PersonaData>): void {
+  static updatePersona(personaId: string, updates: Partial<Persona>): void {
     const personas = this.getPersonas()
     const index = personas.findIndex(p => p.id === personaId)
     
     if (index !== -1) {
-      personas[index] = { ...personas[index], ...updates }
+      const updatedPersona = { ...personas[index], ...updates }
+      personas[index] = validateAndCleanPersona(updatedPersona)
       this.savePersonas(personas)
     }
   }
@@ -172,7 +201,7 @@ export class PersonaManager {
     SessionManager.updateSession({ totalPersonas: 0 })
   }
 
-  static exportPersona(persona: PersonaData, format: 'json' | 'csv' | 'pdf'): void {
+  static exportPersona(persona: Persona, format: 'json' | 'csv' | 'pdf'): void {
     let content: string
     let mimeType: string
     let filename: string
@@ -212,7 +241,7 @@ export class PersonaManager {
     URL.revokeObjectURL(url)
   }
 
-  private static personaToCSV(persona: PersonaData): string {
+  private static personaToCSV(persona: Persona): string {
     const headers = [
       'Nom', 'Âge', 'Profession', 'Localisation', 'Revenus', 'Éducation',
       'Situation familiale', 'Personnalité', 'Valeurs', 'Intérêts',
@@ -257,9 +286,37 @@ export class BriefManager {
     
     try {
       const briefsData = localStorage.getItem(BRIEFS_KEY)
-      return briefsData ? JSON.parse(briefsData) : []
+      if (!briefsData || briefsData.trim() === '') return []
+      
+      // Vérifier que c'est un JSON valide avant de parser
+      const trimmed = briefsData.trim()
+      if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) {
+        console.warn('Briefs data format invalide, suppression')
+        localStorage.removeItem(BRIEFS_KEY)
+        return []
+      }
+      
+      // Tentative de parsing avec gestion d'erreur robuste
+      let parsed
+      try {
+        parsed = JSON.parse(trimmed)
+      } catch (parseError) {
+        console.error('Erreur de parsing JSON pour les briefs:', parseError)
+        localStorage.removeItem(BRIEFS_KEY)
+        return []
+      }
+      
+      if (!Array.isArray(parsed)) {
+        console.warn('Données briefs invalides, réinitialisation')
+        localStorage.removeItem(BRIEFS_KEY)
+        return []
+      }
+      
+      return parsed.filter(brief => typeof brief === 'string')
     } catch (error) {
       console.error('Erreur lors de la récupération des briefs:', error)
+      // Nettoyer le localStorage corrompu
+      localStorage.removeItem(BRIEFS_KEY)
       return []
     }
   }
@@ -309,9 +366,21 @@ export const useLocalStorage = <T>(key: string, initialValue: T) => {
     
     try {
       const item = window.localStorage.getItem(key)
-      return item ? JSON.parse(item) : initialValue
+      if (!item || item.trim() === '') return initialValue
+      
+      // Vérification basique du format JSON
+      if (!item.startsWith('{') && !item.startsWith('[') && !item.startsWith('"')) {
+        console.warn(`Format invalide pour ${key}, utilisation de la valeur par défaut`)
+        window.localStorage.removeItem(key)
+        return initialValue
+      }
+      
+      const parsed = JSON.parse(item)
+      return parsed
     } catch (error) {
       console.error(`Erreur lors de la lecture de ${key}:`, error)
+      // Nettoyer la clé corrompue
+      window.localStorage.removeItem(key)
       return initialValue
     }
   })
@@ -336,10 +405,10 @@ export const useLocalStorage = <T>(key: string, initialValue: T) => {
 export const getSession = () => SessionManager.getSession()
 export const updateSession = (updates: Partial<SessionData>) => SessionManager.updateSession(updates)
 export const createSession = () => SessionManager.createSession()
-export const savePersonas = (personas: PersonaData[]) => PersonaManager.savePersonas(personas)
+export const savePersonas = (personas: Persona[]) => PersonaManager.savePersonas(personas)
 export const getPersonas = () => PersonaManager.getPersonas()
 export const loadPersonas = () => PersonaManager.getPersonas()
-export const exportToJSON = (personas: PersonaData[]) => {
+export const exportToJSON = (personas: Persona[]) => {
   if (personas.length === 1) {
     PersonaManager.exportPersona(personas[0], 'json')
   } else {
@@ -355,7 +424,7 @@ export const exportToJSON = (personas: PersonaData[]) => {
     URL.revokeObjectURL(url)
   }
 }
-export const exportToCSV = (personas: PersonaData[]) => {
+export const exportToCSV = (personas: Persona[]) => {
   if (personas.length === 1) {
     PersonaManager.exportPersona(personas[0], 'csv')
   } else {
