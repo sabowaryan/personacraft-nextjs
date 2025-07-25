@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { stackServerApp } from '../stack';
+import { stackServerApp } from './stack';
 import { permissionService } from './services/permissionService';
 
 export async function middleware(request: NextRequest) {
