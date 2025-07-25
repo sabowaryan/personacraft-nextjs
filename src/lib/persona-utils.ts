@@ -36,6 +36,8 @@ export function validateAndCleanPersona(persona: Partial<Persona>): Persona {
     age: persona.age || 25,
     occupation: persona.occupation || 'Non spécifié',
     location: persona.location || 'Non spécifié',
+    bio: persona.bio || 'Biographie non disponible',
+    quote: persona.quote || 'Citation non disponible',
     demographics: {
       ...defaultDemographics,
       ...persona.demographics

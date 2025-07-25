@@ -160,8 +160,8 @@ export default function FeaturesClient() {
                                     key={category}
                                     onClick={() => setSelectedCategory(category)}
                                     className={`px-6 py-2 rounded-md font-medium transition-colors ${selectedCategory === category
-                                            ? 'bg-white text-blue-600 shadow-sm'
-                                            : 'text-gray-600 hover:text-gray-900'
+                                        ? 'bg-white text-blue-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-900'
                                         }`}
                                 >
                                     {category === 'core' && 'Essentiel'}
