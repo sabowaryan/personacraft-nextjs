@@ -200,17 +200,20 @@ async function handleUserCreated(userData: StackUserData) {
       }
 
       // Création de l'utilisateur avec validation des données
-      const userData_create = {
+      const createData: any = {
         id: userData.id,
         name: userData.display_name || 'Utilisateur',
         planId: freePlan.id,
         createdAt: new Date(userData.created_at_millis),
         updatedAt: new Date(userData.updated_at_millis),
-        ...(userData.primary_email && { email: userData.primary_email }),
       };
 
+      if (userData.primary_email) {
+        createData.email = userData.primary_email;
+      }
+
       const newUser = await tx.user.create({
-        data: userData_create,
+        data: createData,
         select: { id: true, email: true, name: true },
       });
 
