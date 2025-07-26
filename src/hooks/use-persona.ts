@@ -3,6 +3,7 @@ import { Persona, PersonaFilters, SortOptions } from '@/types'
 import { PersonaManager } from '@/lib/session'
 import { validateAndCleanPersona } from '@/lib/persona-utils'
 import { useUser } from '@stackframe/stack'
+import { handleApiResponse, isAuthTimeoutError, getErrorMessage } from '@/lib/client-error-utils'
 
 interface UsePersonaReturn {
     personas: Persona[]
@@ -57,10 +58,7 @@ export function usePersona(): UsePersonaReturn {
             if (useDatabase && user) {
                 // Charger depuis la base de données
                 const response = await fetch('/api/personas')
-                if (!response.ok) {
-                    throw new Error('Erreur lors du chargement des personas')
-                }
-                const loadedPersonas = await response.json()
+                const loadedPersonas = await handleApiResponse<Persona[]>(response)
                 setPersonas(loadedPersonas)
             } else {
                 // Fallback vers localStorage
@@ -68,7 +66,12 @@ export function usePersona(): UsePersonaReturn {
                 setPersonas(loadedPersonas)
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Erreur lors du chargement')
+            if (isAuthTimeoutError(err)) {
+                setError('La connexion a pris trop de temps. Veuillez réessayer.')
+            } else {
+                setError(getErrorMessage(err))
+            }
+            
             // En cas d'erreur avec la DB, essayer localStorage
             if (useDatabase) {
                 try {

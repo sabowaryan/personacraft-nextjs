@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 const { prisma } = await import('@/lib/prisma');
 
-import { getStackServerApp } from '@/stack-server';
+import { getAuthenticatedUser } from '@/lib/auth-utils';
 
 export async function GET(request: NextRequest) {
   try {
-    const stackServerApp = await getStackServerApp();
-    const user = await stackServerApp.getUser();
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
@@ -23,6 +22,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(personas)
   } catch (error) {
     console.error('Erreur lors de la récupération des personas:', error)
+    
+    // Handle specific error types
+    if (error instanceof Error && error.message === 'Auth timeout') {
+      return NextResponse.json(
+        { error: 'Timeout d\'authentification' },
+        { status: 408 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Erreur lors de la récupération des personas' },
       { status: 500 }
@@ -32,8 +40,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const stackServerApp = await getStackServerApp();
-    const user = await stackServerApp.getUser()
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
@@ -73,6 +80,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(persona, { status: 201 })
   } catch (error) {
     console.error('Erreur lors de la création du persona:', error)
+    
+    // Handle specific error types
+    if (error instanceof Error && error.message === 'Auth timeout') {
+      return NextResponse.json(
+        { error: 'Timeout d\'authentification' },
+        { status: 408 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Erreur lors de la création du persona' },
       { status: 500 }

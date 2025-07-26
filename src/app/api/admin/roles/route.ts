@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-import { getStackServerApp } from '@/stack-server'
+import { getStackServerApp } from '@/stack-server';
 
 const { prisma } = await import('@/lib/prisma');
-
 
 export async function GET(request: NextRequest) {
   try {

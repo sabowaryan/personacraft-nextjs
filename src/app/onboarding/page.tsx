@@ -2,21 +2,32 @@
 
 import { useUser } from "@stackframe/stack";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import LogoWithText from "@/components/LogoWithText";
+import OnboardingStep from "@/components/onboarding/OnboardingStep";
+import OnboardingBenefits from "@/components/onboarding/OnboardingBenefits";
+import BasicInfoStep from "@/components/onboarding/steps/BasicInfoStep";
+import UseCaseStep from "@/components/onboarding/steps/UseCaseStep";
+import ExperienceStep from "@/components/onboarding/steps/ExperienceStep";
+import { useOnboardingForm } from "@/hooks/use-onboarding-form";
 
 export default function OnboardingPage() {
   const user = useUser();
   const router = useRouter();
-  const [formData, setFormData] = useState({
-    company: '',
-    role: '',
-    industry: '',
-    teamSize: '',
-    useCase: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    formData,
+    currentStep,
+    totalSteps,
+    isSubmitting,
+    error,
+    updateField,
+    nextStep,
+    prevStep,
+    submitForm,
+    skipOnboarding,
+  } = useOnboardingForm();
 
   // Redirect to signin if user is not authenticated
   if (user === null) {
@@ -24,222 +35,184 @@ export default function OnboardingPage() {
     return null;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      if (!user) {
-        console.error('Utilisateur non authentifié');
-        router.push('/auth/signin');
-        return;
-      }
-
-      const response = await fetch('/api/onboarding', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Erreur lors de l\'onboarding');
-      }
-
-      router.push('/dashboard');
-    } catch (error) {
-      console.error('Erreur lors de l\'onboarding:', error);
-      // Vous pourriez ajouter un état d'erreur ici pour l'afficher à l'utilisateur
-    } finally {
-      setIsSubmitting(false);
+  const getStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <OnboardingStep
+            title="Parlez-nous de vous"
+            description="Ces informations nous aident à personnaliser votre expérience PersonaCraft"
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+          >
+            <BasicInfoStep formData={formData} updateField={updateField} />
+          </OnboardingStep>
+        );
+      case 2:
+        return (
+          <OnboardingStep
+            title="Vos objectifs"
+            description="Comment comptez-vous utiliser PersonaCraft pour atteindre vos objectifs ?"
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+          >
+            <UseCaseStep formData={formData} updateField={updateField} />
+          </OnboardingStep>
+        );
+      case 3:
+        return (
+          <OnboardingStep
+            title="Votre expérience"
+            description="Dernière étape ! Dites-nous votre niveau d'expérience avec les personas"
+            currentStep={currentStep}
+            totalSteps={totalSteps}
+          >
+            <ExperienceStep formData={formData} updateField={updateField} />
+          </OnboardingStep>
+        );
+      default:
+        return null;
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.company && formData.role && formData.industry && formData.teamSize;
+      case 2:
+        return formData.useCase;
+      case 3:
+        return formData.experience;
+      default:
+        return false;
+    }
+  };
+
+  const handleNext = () => {
+    if (currentStep === totalSteps) {
+      submitForm();
+    } else {
+      nextStep();
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-12">
           <Link href="/" className="inline-block">
             <LogoWithText 
               size="xl" 
               variant="primary" 
               text="PersonaCraft" 
-              className="mb-2 justify-center" 
+              className="mb-4 justify-center" 
             />
           </Link>
-          <p className="text-gray-600">
-            Personnalisez votre expérience pour des personas plus précis
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Bienvenue sur PersonaCraft !
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Personnalisez votre expérience pour créer des personas plus précis et adaptés à vos besoins
           </p>
         </div>
 
-        {/* Onboarding Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900 text-center">
-              Bienvenue sur PersonaCraft !
-            </h2>
-            <p className="text-gray-600 text-center mt-2">
-              Aidez-nous à personnaliser votre expérience en nous en disant plus sur vous
-            </p>
-          </div>
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <div className="lg:col-span-2">
+              {getStepContent()}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Company */}
-            <div>
-              <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                Entreprise ou organisation
-              </label>
-              <input
-                type="text"
-                id="company"
-                value={formData.company}
-                onChange={(e) => handleInputChange('company', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="Ex: TechStart, Freelance, etc."
-                required
-              />
+              {/* Error Message */}
+              {error && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="mt-8 flex items-center justify-between">
+                <button
+                  onClick={prevStep}
+                  disabled={currentStep === 1}
+                  className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Précédent
+                </button>
+
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={skipOnboarding}
+                    className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    Passer cette étape
+                  </button>
+                  
+                  <button
+                    onClick={handleNext}
+                    disabled={!canProceed() || isSubmitting}
+                    className="flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isSubmitting ? (
+                      'Configuration...'
+                    ) : currentStep === totalSteps ? (
+                      'Commencer avec PersonaCraft'
+                    ) : (
+                      <>
+                        Suivant
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Role */}
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                Votre rôle
-              </label>
-              <select
-                id="role"
-                value={formData.role}
-                onChange={(e) => handleInputChange('role', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              >
-                <option value="">Sélectionnez votre rôle</option>
-                <option value="marketing-manager">Directeur Marketing</option>
-                <option value="growth-hacker">Growth Hacker</option>
-                <option value="product-manager">Chef de Produit</option>
-                <option value="consultant">Consultant Marketing</option>
-                <option value="entrepreneur">Entrepreneur</option>
-                <option value="freelancer">Freelance</option>
-                <option value="other">Autre</option>
-              </select>
+            {/* Sidebar - Benefits */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-8">
+                <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-100">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                    Ce qui vous attend
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3 mt-0.5">
+                        <div className="w-3 h-3 bg-purple-600 rounded-full"></div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Templates personnalisés</h4>
+                        <p className="text-sm text-gray-600">Basés sur votre secteur d'activité</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3 mt-0.5">
+                        <div className="w-3 h-3 bg-green-600 rounded-full"></div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Recommandations IA</h4>
+                        <p className="text-sm text-gray-600">Adaptées à vos objectifs</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3 mt-0.5">
+                        <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">Dashboard optimisé</h4>
+                        <p className="text-sm text-gray-600">Interface adaptée à votre usage</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-
-            {/* Industry */}
-            <div>
-              <label htmlFor="industry" className="block text-sm font-medium text-gray-700 mb-2">
-                Secteur d'activité
-              </label>
-              <select
-                id="industry"
-                value={formData.industry}
-                onChange={(e) => handleInputChange('industry', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              >
-                <option value="">Sélectionnez votre secteur</option>
-                <option value="tech">Technologie</option>
-                <option value="ecommerce">E-commerce</option>
-                <option value="saas">SaaS</option>
-                <option value="fashion">Mode</option>
-                <option value="health">Santé</option>
-                <option value="finance">Finance</option>
-                <option value="education">Éducation</option>
-                <option value="consulting">Conseil</option>
-                <option value="other">Autre</option>
-              </select>
-            </div>
-
-            {/* Team Size */}
-            <div>
-              <label htmlFor="teamSize" className="block text-sm font-medium text-gray-700 mb-2">
-                Taille de l'équipe
-              </label>
-              <select
-                id="teamSize"
-                value={formData.teamSize}
-                onChange={(e) => handleInputChange('teamSize', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              >
-                <option value="">Sélectionnez la taille</option>
-                <option value="solo">Solo (1 personne)</option>
-                <option value="small">Petite équipe (2-10)</option>
-                <option value="medium">Équipe moyenne (11-50)</option>
-                <option value="large">Grande équipe (51-200)</option>
-                <option value="enterprise">Entreprise (200+)</option>
-              </select>
-            </div>
-
-            {/* Use Case */}
-            <div>
-              <label htmlFor="useCase" className="block text-sm font-medium text-gray-700 mb-2">
-                Principal cas d'usage
-              </label>
-              <select
-                id="useCase"
-                value={formData.useCase}
-                onChange={(e) => handleInputChange('useCase', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              >
-                <option value="">Sélectionnez votre cas d'usage</option>
-                <option value="campaign-planning">Planification de campagnes</option>
-                <option value="content-strategy">Stratégie de contenu</option>
-                <option value="product-development">Développement produit</option>
-                <option value="market-research">Étude de marché</option>
-                <option value="client-work">Travail client</option>
-                <option value="personal-project">Projet personnel</option>
-              </select>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full bg-purple-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-purple-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSubmitting ? 'Configuration en cours...' : 'Commencer avec PersonaCraft'}
-            </button>
-          </form>
-
-          {/* Skip Option */}
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              Passer cette étape
-            </button>
           </div>
         </div>
 
-        {/* Benefits */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="bg-white/50 rounded-xl p-4 backdrop-blur-sm">
-            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <div className="w-4 h-4 bg-purple-600 rounded-full"></div>
-            </div>
-            <p className="text-sm text-gray-600">Personas personnalisés</p>
-          </div>
-          <div className="bg-white/50 rounded-xl p-4 backdrop-blur-sm">
-            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <div className="w-4 h-4 bg-green-600 rounded-full"></div>
-            </div>
-            <p className="text-sm text-gray-600">Insights culturels</p>
-          </div>
-          <div className="bg-white/50 rounded-xl p-4 backdrop-blur-sm">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-            </div>
-            <p className="text-sm text-gray-600">Export multi-format</p>
-          </div>
-        </div>
+        {/* Benefits Section */}
+        <OnboardingBenefits />
       </div>
     </div>
   );

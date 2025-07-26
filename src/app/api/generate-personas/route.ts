@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAndCleanPersonas } from '@/lib/persona-utils';
 import { permissionService } from '@/services/permissionService';
-import { getStackServerApp } from '@/stack-server';
+import { getAuthenticatedUser } from '@/lib/auth-utils';
+import { getGeminiClient } from '@/lib/api/gemini';
+import { getQlooClient } from '@/lib/api/qloo';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +15,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const stackServerApp = await getStackServerApp();
-    const user = await stackServerApp.getUser();
+    
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ error: 'Authentification requise' }, { status: 401 });
     }
@@ -64,39 +66,27 @@ export async function POST(request: NextRequest) {
     }
 
     // Étape 1: Générer les personas de base avec Gemini
-    const geminiResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/gemini`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        brief,
-        userContext: userContext || undefined
-      })
-    });
+    const geminiClient = getGeminiClient();
+    const personas = await geminiClient.generatePersonas(brief, userContext || undefined);
 
-    if (!geminiResponse.ok) {
-      throw new Error('Erreur lors de la génération avec Gemini');
-    }
-
-    const geminiData = await geminiResponse.json();
+    const geminiData = {
+      success: true,
+      personas,
+      timestamp: new Date().toISOString()
+    };
 
     // Étape 2: Enrichir avec les données culturelles Qloo
-    const qlooResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/qloo`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ personas: geminiData.personas })
-    });
-
     let enrichedPersonas = geminiData.personas;
+    let qlooSuccess = false;
 
-    if (qlooResponse.ok) {
-      const qlooData = await qlooResponse.json();
-      enrichedPersonas = qlooData.personas;
-    } else {
-      console.warn('Enrichissement Qloo échoué, utilisation des personas Gemini seuls');
+    try {
+      const qlooClient = getQlooClient();
+      enrichedPersonas = await qlooClient.enrichPersonas(geminiData.personas);
+      qlooSuccess = true;
+      console.log('✅ Enrichissement Qloo réussi');
+    } catch (error) {
+      console.warn('⚠️ Enrichissement Qloo échoué, utilisation des personas Gemini seuls:', error);
+      // On garde les personas Gemini originaux en cas d'échec Qloo
     }
 
     // Étape 3: Valider et nettoyer les personas avant de les retourner
@@ -107,13 +97,24 @@ export async function POST(request: NextRequest) {
       personas: validatedPersonas,
       timestamp: new Date().toISOString(),
       sources: {
-        gemini: geminiResponse.ok,
-        qloo: qlooResponse.ok
+        gemini: true,
+        qloo: qlooSuccess
       }
     });
 
   } catch (error) {
     console.error('Erreur lors de la génération des personas:', error);
+    
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.message === 'Auth timeout') {
+        return NextResponse.json(
+          { error: 'Timeout d\'authentification' },
+          { status: 408 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

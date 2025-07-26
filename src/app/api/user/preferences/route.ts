@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getStackServerApp } from '@/stack-server'
+import { getAuthenticatedUser } from '@/lib/auth-utils'
 
 const { prisma } = await import('@/lib/prisma');
 
@@ -9,14 +9,8 @@ export async function POST(request: NextRequest) {
     let requestBody;
 
     try {
-        // Vérifier l'authentification avec timeout
-        const stackServerApp = await getStackServerApp();
-        const userPromise = stackServerApp.getUser();
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Auth timeout')), 5000)
-        );
-
-        const user = await Promise.race([userPromise, timeoutPromise]) as any;
+        // Vérifier l'authentification avec retry logic
+        const user = await getAuthenticatedUser();
 
         if (!user) {
             return NextResponse.json(
@@ -129,14 +123,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
     try {
-        // Vérifier l'authentification avec timeout
-        const stackServerApp = await getStackServerApp();
-        const userPromise = stackServerApp.getUser();
-        const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Auth timeout')), 5000)
-        );
-
-        const user = await Promise.race([userPromise, timeoutPromise]) as any;
+        // Vérifier l'authentification avec retry logic
+        const user = await getAuthenticatedUser();
 
         if (!user) {
             return NextResponse.json(
@@ -146,7 +134,19 @@ export async function GET() {
         }
 
         // Ensure user exists in database before proceeding
-        await ensureUserExists(user)
+        try {
+            await ensureUserExists(user)
+        } catch (userError) {
+            // If user creation fails, log but continue with default preferences
+            console.error('Failed to ensure user exists:', userError)
+            return NextResponse.json({
+                preferences: {
+                    theme: 'light',
+                    language: 'fr',
+                    autoSave: true
+                }
+            })
+        }
 
         // Récupérer les préférences de l'utilisateur
         const userPreferences = await prisma.userPreferences.findUnique({

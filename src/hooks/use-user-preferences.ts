@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useUser } from '@stackframe/stack'
+import { handleApiResponse, isAuthTimeoutError, getErrorMessage } from '@/lib/client-error-utils'
 
 export interface UserPreferences {
   language: 'fr' | 'en'
@@ -23,56 +24,66 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   autoSave: true
 }
 
-const PREFERENCES_STORAGE_KEY = 'personacraft_preferences'
-
 export function useUserPreferences(): UseUserPreferencesReturn {
   const user = useUser()
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Générer une clé de stockage unique par utilisateur
-  const getStorageKey = useCallback(() => {
-    if (user?.id) {
-      return `${PREFERENCES_STORAGE_KEY}_${user.id}`
+  // Charger les préférences depuis l'API (base de données)
+  const loadPreferences = useCallback(async () => {
+    if (!user) {
+      setPreferences(DEFAULT_PREFERENCES)
+      return
     }
-    return PREFERENCES_STORAGE_KEY // Fallback pour les utilisateurs non connectés
-  }, [user?.id])
 
-  // Charger les préférences depuis le localStorage
-  const loadPreferences = useCallback(() => {
     try {
       setIsLoading(true)
       setError(null)
 
-      const storageKey = getStorageKey()
-      const stored = localStorage.getItem(storageKey)
-
-      if (stored) {
-        const parsedPreferences = JSON.parse(stored)
-        setPreferences({ ...DEFAULT_PREFERENCES, ...parsedPreferences })
-      } else {
-        setPreferences(DEFAULT_PREFERENCES)
-      }
+      const response = await fetch('/api/user/preferences')
+      const data = await handleApiResponse<{ preferences: UserPreferences }>(response)
+      
+      setPreferences({ ...DEFAULT_PREFERENCES, ...data.preferences })
     } catch (err) {
       console.error('Erreur lors du chargement des préférences:', err)
-      setError('Erreur lors du chargement des préférences')
+      
+      if (isAuthTimeoutError(err)) {
+        setError('La connexion a pris trop de temps. Veuillez réessayer.')
+      } else {
+        setError(getErrorMessage(err))
+      }
+      
       setPreferences(DEFAULT_PREFERENCES)
     } finally {
       setIsLoading(false)
     }
-  }, [getStorageKey])
+  }, [user])
 
-  // Sauvegarder les préférences dans le localStorage
-  const savePreferencesToStorage = useCallback((prefs: UserPreferences) => {
+  // Sauvegarder les préférences via l'API (base de données)
+  const savePreferences = useCallback(async (prefs: UserPreferences) => {
+    if (!user) return
+
     try {
-      const storageKey = getStorageKey()
-      localStorage.setItem(storageKey, JSON.stringify(prefs))
+      const response = await fetch('/api/user/preferences', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ preferences: prefs }),
+      })
+
+      await handleApiResponse(response)
     } catch (err) {
       console.error('Erreur lors de la sauvegarde des préférences:', err)
-      setError('Erreur lors de la sauvegarde des préférences')
+      
+      if (isAuthTimeoutError(err)) {
+        setError('La connexion a pris trop de temps. Veuillez réessayer.')
+      } else {
+        setError(getErrorMessage(err))
+      }
     }
-  }, [getStorageKey])
+  }, [user])
 
   // Charger les préférences au montage et quand l'utilisateur change
   useEffect(() => {
@@ -86,20 +97,22 @@ export function useUserPreferences(): UseUserPreferencesReturn {
     }
   }, [preferences.theme])
 
-  const updatePreferences = useCallback((updates: Partial<UserPreferences>) => {
+  const updatePreferences = useCallback(async (updates: Partial<UserPreferences>) => {
     try {
       setError(null)
 
-      setPreferences(prevPrefs => {
-        const newPrefs = { ...prevPrefs, ...updates }
-        savePreferencesToStorage(newPrefs)
-        return newPrefs
-      })
+      const newPrefs = { ...preferences, ...updates }
+      setPreferences(newPrefs)
+      
+      // Sauvegarder en base de données
+      await savePreferences(newPrefs)
     } catch (err) {
       console.error('Erreur lors de la mise à jour des préférences:', err)
       setError('Erreur lors de la mise à jour des préférences')
+      // Revenir aux anciennes préférences en cas d'erreur
+      setPreferences(preferences)
     }
-  }, [savePreferencesToStorage])
+  }, [preferences, savePreferences])
 
   const setLanguage = useCallback((language: 'fr' | 'en') => {
     updatePreferences({ language })

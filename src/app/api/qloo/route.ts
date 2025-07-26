@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQlooClient } from '@/lib/api/qloo';
-import { getStackServerApp } from '@/stack-server'
+import { getAuthenticatedUser } from '@/lib/auth-utils'
 
 export async function POST(request: NextRequest) {
   try {
     // Vérifier l'authentification
-    const stackServerApp = await getStackServerApp();
-    const user = await  stackServerApp.getUser();
+    const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json(
         { error: 'Non authentifié' },
@@ -54,6 +53,15 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Erreur lors de l\'enrichissement Qloo:', error);
+    
+    // Handle specific error types
+    if (error instanceof Error && error.message === 'Auth timeout') {
+      return NextResponse.json(
+        { error: 'Timeout d\'authentification' },
+        { status: 408 }
+      );
+    }
+    
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

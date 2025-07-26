@@ -87,20 +87,9 @@ export function PersonaMigration() {
     setLocalPersonasCount(0)
   }
 
+  // Ne pas afficher le composant s'il n'y a pas de personas à migrer
   if (localPersonasCount === 0 && !result) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5" />
-            Migration des Personas
-          </CardTitle>
-          <CardDescription>
-            Aucun persona trouvé dans le stockage local.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    )
+    return null
   }
 
   return (
