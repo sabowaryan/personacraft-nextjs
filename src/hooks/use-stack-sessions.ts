@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { StackAuthSessionService, StackSession, SessionListResponse } from '@/lib/stack-auth-sessions'
+import { useUser } from '@stackframe/stack'
+import { StackAuthSessionService, StackSession } from '@/lib/stack-auth-sessions'
 
 interface UseStackSessionsReturn {
   // État
@@ -36,6 +37,7 @@ interface UseStackSessionsReturn {
 }
 
 export function useStackSessions(): UseStackSessionsReturn {
+  const user = useUser();
   const [sessions, setSessions] = useState<StackSession[]>([])
   const [currentSession, setCurrentSession] = useState<StackSession | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -46,60 +48,62 @@ export function useStackSessions(): UseStackSessionsReturn {
     expiredSessions: 0
   })
 
-  // Charger les sessions au montage
-  useEffect(() => {
-    refreshSessions()
-  }, [])
-
   const refreshSessions = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
       // Charger toutes les sessions
-      const sessionData = await StackAuthSessionService.listSessions()
+      const sessionData = await StackAuthSessionService.listSessions(user)
       setSessions(sessionData.sessions)
 
       // Charger la session actuelle
-      const current = await StackAuthSessionService.getCurrentSession()
+      const current = await StackAuthSessionService.getCurrentSession(user)
       setCurrentSession(current)
 
       // Charger les statistiques
-      const sessionStats = await StackAuthSessionService.getSessionStats()
+      const sessionStats = await StackAuthSessionService.getSessionStats(user)
       setStats(sessionStats)
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors du chargement des sessions'
+      const errorMessage = err instanceof Error ? err.message : 'Error loading sessions'
       setError(errorMessage)
-      console.error('Erreur dans useStackSessions:', err)
+      console.error('Error in useStackSessions:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [user])
+
+  // Charger les sessions au montage et quand l'utilisateur change
+  useEffect(() => {
+    if (user) {
+      refreshSessions()
+    }
+  }, [user, refreshSessions])
 
   const revokeSession = useCallback(async (sessionId: string): Promise<boolean> => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const success = await StackAuthSessionService.revokeSession(sessionId)
+      const success = await StackAuthSessionService.revokeSession(sessionId, user)
 
       if (success) {
         // Rafraîchir la liste des sessions après révocation
         await refreshSessions()
       } else {
-        setError('Échec de la révocation de la session')
+        setError('Failed to revoke session')
       }
 
       return success
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la révocation de la session'
+      const errorMessage = err instanceof Error ? err.message : 'Error revoking session'
       setError(errorMessage)
       return false
     } finally {
       setIsLoading(false)
     }
-  }, [refreshSessions])
+  }, [refreshSessions, user])
 
   const revokeAllOtherSessions = useCallback(async (): Promise<boolean> => {
     setIsLoading(true)
@@ -112,12 +116,12 @@ export function useStackSessions(): UseStackSessionsReturn {
         // Rafraîchir la liste des sessions après révocation
         await refreshSessions()
       } else {
-        setError('Échec de la révocation des autres sessions')
+        setError('Failed to revoke other sessions')
       }
 
       return success
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la révocation des sessions'
+      const errorMessage = err instanceof Error ? err.message : 'Error revoking sessions'
       setError(errorMessage)
       return false
     } finally {
@@ -138,10 +142,10 @@ export function useStackSessions(): UseStackSessionsReturn {
       })
 
       if (!response.ok) {
-        throw new Error('Erreur lors de l\'incrémentation des générations')
+        throw new Error('Error incrementing generations')
       }
     } catch (err) {
-      console.error('Erreur lors de l\'incrémentation des générations:', err)
+      console.error('Error incrementing generations:', err)
     }
   }, [])
 

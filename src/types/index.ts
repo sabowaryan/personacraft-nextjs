@@ -16,14 +16,44 @@ export interface Psychographics {
 export interface CulturalData {
   music: string[]
   movies: string[]
+  tv: string[]
+  books: string[]
   brands: string[]
+  restaurants: string[]
+  travel: string[]
+  fashion: string[]
+  beauty: string[]
+  food: string[]
   socialMedia: string[]
+  podcasts?: string[]
+  videoGames?: string[]
+  influencers?: string[]
 }
 
 export interface MarketingInsights {
   preferredChannels: string[]
   messagingTone: string
   buyingBehavior: string
+}
+
+export interface SocialMediaInsights {
+  audienceMatches: Array<{
+    name: string
+    relevanceFactors: string[]
+    estimatedFollowingOverlap: number
+  }>
+  brandInfluence: Array<{
+    brand: string
+    category: string
+    platforms: string[]
+    relevanceScore: number
+  }>
+  contentPreferences: string[]
+  demographicAlignment: Array<{
+    ageGroup: string
+    primaryPlatforms: string[]
+    engagementStyle: string
+  }>
 }
 
 export interface Persona {
@@ -43,6 +73,10 @@ export interface Persona {
   qualityScore: number
   createdAt: string
   brief?: string
+  socialMediaInsights?: {
+    insights: SocialMediaInsights
+    platforms: string[]
+  }
 }
 
 export interface SessionData {

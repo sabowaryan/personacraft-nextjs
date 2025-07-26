@@ -27,7 +27,14 @@ const MarketingInsightsSchema = z.object({
 const CulturalDataSchema = z.object({
     music: z.array(z.string()).default([]),
     movies: z.array(z.string()).default([]),
+    tv: z.array(z.string()).default([]),
+    books: z.array(z.string()).default([]),
     brands: z.array(z.string()).default([]),
+    restaurants: z.array(z.string()).default([]),
+    travel: z.array(z.string()).default([]),
+    fashion: z.array(z.string()).default([]),
+    beauty: z.array(z.string()).default([]),
+    food: z.array(z.string()).default([]),
     socialMedia: z.array(z.string()).default([])
 }).optional();
 
@@ -218,7 +225,14 @@ export class PersonaValidator {
             culturalData: persona.culturalData || {
                 music: [],
                 movies: [],
+                tv: [],
+                books: [],
                 brands: [],
+                restaurants: [],
+                travel: [],
+                fashion: [],
+                beauty: [],
+                food: [],
                 socialMedia: []
             }
         }));

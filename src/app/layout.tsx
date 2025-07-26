@@ -1,10 +1,9 @@
 import type { Metadata } from 'next'
-import { StackProvider, StackTheme } from "@stackframe/stack";
-import { stackServerApp } from "../stack";
 import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 import ConditionalLayout from '@/components/ConditionalLayout'
 import SuspenseWrapper from '@/components/SuspenseWrapper'
+import StackProviderWrapper from '@/components/StackProviderWrapper'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -124,15 +123,13 @@ export default function RootLayout({
         <meta name="theme-color" content="#7C3AED" />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <StackProvider app={stackServerApp}>
-          <StackTheme theme={customTheme}>
-            <SuspenseWrapper>
-              <ConditionalLayout>
-                {children}
-              </ConditionalLayout>
-            </SuspenseWrapper>
-          </StackTheme>
-        </StackProvider>
+        <StackProviderWrapper customTheme={customTheme}>
+          <SuspenseWrapper>
+            <ConditionalLayout>
+              {children}
+            </ConditionalLayout>
+          </SuspenseWrapper>
+        </StackProviderWrapper>
       </body>
     </html>
   )

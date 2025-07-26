@@ -2,17 +2,19 @@
 
 import { useEffect } from 'react';
 import { useUser } from '@stackframe/stack';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 export function useOnboarding() {
   const user = useUser();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (user && !user.clientReadOnlyMetadata?.onboardedAt) {
+    // Ne pas rediriger si on est déjà sur la page d'onboarding
+    if (user && !user.clientReadOnlyMetadata?.onboardedAt && pathname !== '/onboarding') {
       router.push('/onboarding');
     }
-  }, [user, router]);
+  }, [user, router, pathname]);
 
   return {
     isOnboarded: user?.clientReadOnlyMetadata?.onboardedAt || false,

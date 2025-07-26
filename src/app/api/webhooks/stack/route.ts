@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Webhook } from 'svix';
-import { PrismaClient } from '../../../../../generated/prisma';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { z } from 'zod';
 
 // Validation schema pour les données utilisateur Stack Auth
@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
 
 async function handleUserCreated(userData: StackUserData) {
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Vérification d'idempotence - utilisateur déjà existant
       const existingUser = await tx.user.findUnique({
         where: { id: userData.id },
@@ -225,12 +225,24 @@ async function handleUserCreated(userData: StackUserData) {
         },
       });
 
+      // Création des préférences utilisateur par défaut
+      await tx.userPreferences.create({
+        data: {
+          userId: newUser.id,
+          theme: 'light',
+          language: 'fr',
+          autoSave: true,
+          generationsCount: 0,
+        },
+      });
+
       console.log(JSON.stringify({
         event: 'user_created',
         userId: userData.id,
         email: userData.primary_email,
         plan: 'Gratuit',
         role: 'free_user',
+        preferences: 'created',
         timestamp: new Date().toISOString(),
       }));
     });
@@ -247,7 +259,7 @@ async function handleUserCreated(userData: StackUserData) {
 
 async function handleUserUpdated(userData: StackUserData) {
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Vérification que l'utilisateur existe
       const existingUser = await tx.user.findUnique({
         where: { id: userData.id },
@@ -298,7 +310,7 @@ async function handleUserUpdated(userData: StackUserData) {
 
 async function handleUserDeleted(userData: StackUserData) {
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Vérification que l'utilisateur existe avant suppression
       const existingUser = await tx.user.findUnique({
         where: { id: userData.id },

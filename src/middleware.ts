@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { stackServerApp } from './stack';
-import { permissionService } from './services/permissionService';
+import { getStackServerApp } from './stack';
+// import { permissionService } from './services/permissionService'; // Temporairement désactivé
 
 export async function middleware(request: NextRequest) {
   const start = Date.now();
@@ -16,6 +16,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Récupérer la session utilisateur avec Stack Auth
+  const stackServerApp = await getStackServerApp();
   const user = await stackServerApp.getUser();
 
   // Routes d'authentification - rediriger les utilisateurs connectés vers le dashboard
@@ -46,12 +47,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // Routes protégées - rediriger les utilisateurs non connectés vers la connexion
-  const protectedRoutes = ['/dashboard', '/admin', '/create-persona'];
+  const protectedRoutes = ['/dashboard', '/admin', '/create-persona', '/onboarding'];
   const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
   if (isProtectedRoute && !user) {
-    console.log(`Redirecting unauthenticated user from ${request.nextUrl.pathname} to /handler/signin`);
-    return NextResponse.redirect(new URL('/handler/signin', request.url));
+    console.log(`Redirecting unauthenticated user from ${request.nextUrl.pathname} to /auth/signin`);
+    return NextResponse.redirect(new URL('/auth/signin', request.url));
   }
 
   // Vérification de l'email vérifié pour les routes protégées
@@ -60,7 +61,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/verify-email', request.url));
   }
 
-  // Vérification des permissions admin
+  // Vérification de l'onboarding pour les routes protégées (sauf /onboarding)
+  const isOnboardingRoute = request.nextUrl.pathname === '/onboarding';
+  if (isProtectedRoute && !isOnboardingRoute && user && user.primaryEmailVerified) {
+    const isOnboarded = user.clientReadOnlyMetadata?.onboardedAt;
+    if (!isOnboarded) {
+      console.log(`Redirecting user without onboarding from ${request.nextUrl.pathname} to /onboarding`);
+      return NextResponse.redirect(new URL('/onboarding', request.url));
+    }
+  }
+
+  // Si l'utilisateur est déjà onboardé et essaie d'accéder à /onboarding, rediriger vers dashboard
+  if (isOnboardingRoute && user && user.primaryEmailVerified) {
+    const isOnboarded = user.clientReadOnlyMetadata?.onboardedAt;
+    if (isOnboarded) {
+      console.log(`Redirecting onboarded user from /onboarding to /dashboard`);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
+  // Vérification des permissions admin (temporairement désactivée pour éviter les boucles)
+  /*
   if (request.nextUrl.pathname.startsWith('/admin') && user) {
     try {
       const isAdmin = await permissionService.hasPermission(user.id, 'admin_access');
@@ -74,7 +95,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Vérification des limites de création de personas
+  // Vérification des limites de création de personas (temporairement désactivée pour éviter les boucles)
   if (request.nextUrl.pathname.startsWith('/create-persona') && user) {
     try {
       const canCreate = await permissionService.checkPersonaLimit(user.id);
@@ -89,6 +110,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur de vérification des limites' }, { status: 500 });
     }
   }
+  */
 
   const response = NextResponse.next();
 
@@ -100,7 +122,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/create-persona/:path*', '/api/:path*', '/auth/:path*', '/handler/signin', '/handler/signup'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/create-persona/:path*', '/api/:path*', '/auth/:path*', '/onboarding', '/handler/signin', '/handler/signup'],
 };
 
 

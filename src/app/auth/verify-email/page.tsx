@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@stackframe/stack';
+import { useUser, useStackApp } from '@stackframe/stack';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Alert } from '@/components/ui/alert';
 
 export default function VerifyEmailPage() {
     const user = useUser();
+    const app = useStackApp();
     const router = useRouter();
     const [isResending, setIsResending] = useState(false);
     const [resendMessage, setResendMessage] = useState('');
@@ -21,9 +22,10 @@ export default function VerifyEmailPage() {
             return;
         }
 
-        // Si l'email est déjà vérifié, rediriger vers le dashboard
+        // Si l'email est déjà vérifié, rediriger vers l'onboarding ou le dashboard
         if (user.primaryEmailVerified) {
-            router.push('/dashboard');
+            const isOnboarded = user?.clientReadOnlyMetadata?.onboardedAt;
+            router.push(isOnboarded ? '/dashboard' : '/onboarding');
             return;
         }
     }, [user, router]);
@@ -36,9 +38,24 @@ export default function VerifyEmailPage() {
         setResendError('');
 
         try {
-            // Utiliser la méthode Stack Auth pour renvoyer l'email de vérification
-            await user.sendVerificationEmail();
-            setResendMessage('Email de vérification renvoyé avec succès !');
+            // Utiliser l'API interne pour renvoyer l'email de vérification
+            const response = await fetch('/api/resend-verification', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: user.primaryEmail,
+                }),
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                setResendMessage('Email de vérification renvoyé avec succès !');
+            } else {
+                setResendError(result.error || 'Erreur lors du renvoi de l\'email.');
+            }
         } catch (error) {
             console.error('Erreur lors du renvoi de l\'email:', error);
             setResendError('Erreur lors du renvoi de l\'email. Veuillez réessayer.');

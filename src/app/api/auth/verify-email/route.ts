@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stackServerApp } from '@/stack';
+import { getStackServerApp } from '@/stack-server';
 
 export async function POST(request: NextRequest) {
     try {
@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
 
         // Stack Auth gère automatiquement la vérification via ses propres handlers
         // Cette API est un fallback pour vérifier le statut après vérification
+        const stackServerApp = await getStackServerApp();
         const user = await stackServerApp.getUser();
         
         if (user && user.primaryEmailVerified) {

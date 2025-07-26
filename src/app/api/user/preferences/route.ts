@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stackServerApp } from '@/stack'
-import { prisma } from '@/lib/prisma'
+import { getStackServerApp } from '@/stack-server'
+
+const { prisma } = await import('@/lib/prisma');
+
+import { ensureUserExists, handleForeignKeyError } from '@/lib/user-utils'
 
 export async function POST(request: NextRequest) {
+    let requestBody;
+
     try {
-        // Vérifier l'authentification
-        const user = await stackServerApp.getUser()
+        // Vérifier l'authentification avec timeout
+        const stackServerApp = await getStackServerApp();
+        const userPromise = stackServerApp.getUser();
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Auth timeout')), 5000)
+        );
+
+        const user = await Promise.race([userPromise, timeoutPromise]) as any;
+
         if (!user) {
             return NextResponse.json(
                 { error: 'Non authentifié' },
@@ -13,7 +25,21 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const { preferences, action } = await request.json()
+        // Parse request body with error handling
+        try {
+            requestBody = await request.json();
+        } catch (parseError) {
+            console.error('Error parsing request body:', parseError);
+            return NextResponse.json(
+                { error: 'Corps de requête invalide' },
+                { status: 400 }
+            );
+        }
+
+        // Ensure user exists in database before proceeding
+        await ensureUserExists(user)
+
+        const { preferences, action } = requestBody;
 
         // Gérer l'action d'incrémentation des générations
         if (action === 'increment_generations') {
@@ -74,24 +100,53 @@ export async function POST(request: NextRequest) {
         })
 
     } catch (error) {
-        console.error('Erreur lors de la sauvegarde des préférences:', error)
+        console.error('Error with user preferences:', error);
+
+        // Handle specific error types
+        if (error instanceof Error) {
+            if (error.message === 'Auth timeout') {
+                return NextResponse.json(
+                    { error: 'Timeout d\'authentification' },
+                    { status: 408 }
+                );
+            }
+
+            if (error.message.includes('ECONNRESET') || (error as any).code === 'ECONNRESET') {
+                return NextResponse.json(
+                    { error: 'Connexion interrompue, veuillez réessayer' },
+                    { status: 503 }
+                );
+            }
+        }
+
+        const errorResponse = handleForeignKeyError(error, 'user preferences')
         return NextResponse.json(
-            { error: 'Erreur interne du serveur' },
-            { status: 500 }
+            { error: errorResponse.error },
+            { status: errorResponse.status }
         )
     }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
-        // Vérifier l'authentification
-        const user = await stackServerApp.getUser()
+        // Vérifier l'authentification avec timeout
+        const stackServerApp = await getStackServerApp();
+        const userPromise = stackServerApp.getUser();
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Auth timeout')), 5000)
+        );
+
+        const user = await Promise.race([userPromise, timeoutPromise]) as any;
+
         if (!user) {
             return NextResponse.json(
                 { error: 'Non authentifié' },
                 { status: 401 }
             )
         }
+
+        // Ensure user exists in database before proceeding
+        await ensureUserExists(user)
 
         // Récupérer les préférences de l'utilisateur
         const userPreferences = await prisma.userPreferences.findUnique({
@@ -121,6 +176,24 @@ export async function GET(request: NextRequest) {
 
     } catch (error) {
         console.error('Erreur lors de la récupération des préférences:', error)
+
+        // Handle specific error types
+        if (error instanceof Error) {
+            if (error.message === 'Auth timeout') {
+                return NextResponse.json(
+                    { error: 'Timeout d\'authentification' },
+                    { status: 408 }
+                );
+            }
+
+            if (error.message.includes('ECONNRESET') || (error as any).code === 'ECONNRESET') {
+                return NextResponse.json(
+                    { error: 'Connexion interrompue, veuillez réessayer' },
+                    { status: 503 }
+                );
+            }
+        }
+
         return NextResponse.json(
             { error: 'Erreur interne du serveur' },
             { status: 500 }

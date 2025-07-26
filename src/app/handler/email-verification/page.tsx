@@ -7,7 +7,7 @@ import { useUser, useStackApp } from '@stackframe/stack';
 export default function EmailVerificationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const user= useUser();
+  const user = useUser();
   const app = useStackApp();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
@@ -27,17 +27,24 @@ export default function EmailVerificationPage() {
         // Utiliser l'API native de Stack Auth pour vérifier l'email
         try {
           await app.verifyEmail(code);
-          
+
           // Attendre que l'état utilisateur soit mis à jour
           if (user && user.primaryEmailVerified) {
             setStatus('success');
             setMessage('Email vérifié avec succès !');
-            
-            // Rediriger après succès
+
+            // Rediriger après succès - vérifier si l'onboarding est nécessaire
             setTimeout(() => {
-              const redirectUrl = afterAuthReturnTo ? 
-                decodeURIComponent(afterAuthReturnTo) : '/dashboard';
-              router.push(redirectUrl);
+              // Si l'utilisateur n'a pas encore fait l'onboarding, l'y rediriger
+              const isOnboarded = user?.clientReadOnlyMetadata?.onboardedAt;
+              
+              if (!isOnboarded) {
+                router.push('/onboarding');
+              } else {
+                const redirectUrl = afterAuthReturnTo ?
+                  decodeURIComponent(afterAuthReturnTo) : '/dashboard';
+                router.push(redirectUrl);
+              }
             }, 2000);
           }
         } catch (verifyError) {
@@ -45,7 +52,7 @@ export default function EmailVerificationPage() {
           setStatus('error');
           setMessage('Code de vérification invalide ou expiré');
         }
-        
+
       } catch (error) {
         console.error('Erreur de vérification:', error);
         setStatus('error');
@@ -77,7 +84,7 @@ export default function EmailVerificationPage() {
             Vérification d'email
           </h2>
         </div>
-        
+
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <div className="text-center">
             {status === 'loading' && (
@@ -86,7 +93,7 @@ export default function EmailVerificationPage() {
                 <p className="text-gray-600">Vérification en cours...</p>
               </div>
             )}
-            
+
             {status === 'success' && (
               <div className="space-y-4">
                 <div className="rounded-full h-12 w-12 bg-green-100 mx-auto flex items-center justify-center">
@@ -98,7 +105,7 @@ export default function EmailVerificationPage() {
                 <p className="text-gray-500 text-sm">Redirection en cours...</p>
               </div>
             )}
-            
+
             {status === 'error' && (
               <div className="space-y-4">
                 <div className="rounded-full h-12 w-12 bg-red-100 mx-auto flex items-center justify-center">

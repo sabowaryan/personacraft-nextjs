@@ -1,4 +1,4 @@
-import { PrismaClient } from "../generated/prisma";
+import { PrismaClient } from "@prisma/client";
 import { pricingService } from "../src/services/pricingService";
 
 const prisma = new PrismaClient();

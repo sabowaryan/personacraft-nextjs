@@ -37,4 +37,6 @@ yarn-error.log*
 .vscode
 
 
-/generated/prisma
+# Prisma
+/generated/
+node_modules/.prisma/

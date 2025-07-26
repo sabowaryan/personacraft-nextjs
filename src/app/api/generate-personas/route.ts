@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAndCleanPersonas } from '@/lib/persona-utils';
 import { permissionService } from '@/services/permissionService';
-import { stackServerApp } from '@/stack';
+import { getStackServerApp } from '@/stack-server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    const stackServerApp = await getStackServerApp();
     const user = await stackServerApp.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Authentification requise' }, { status: 401 });

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { stackServerApp } from '@/stack';
+import { getStackServerApp } from '@/stack-server'
 
 export async function POST(request: NextRequest) {
   try {
+    const stackServerApp = await getStackServerApp();
     const user = await stackServerApp.getUser();
     
     if (!user) {

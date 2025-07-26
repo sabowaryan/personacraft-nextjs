@@ -12,7 +12,11 @@ export default function CustomSignInPage() {
   // Rediriger si l'utilisateur est déjà connecté
   useEffect(() => {
     if (user) {
-      router.push('/dashboard');
+      // Si l'email est vérifié, rediriger vers le dashboard
+      if (user.primaryEmailVerified) {
+        router.push('/dashboard');
+      }
+      // Si l'email n'est pas vérifié, laisser Stack Auth gérer la redirection automatique
     }
   }, [user, router]);
 

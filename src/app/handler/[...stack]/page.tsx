@@ -1,6 +1,7 @@
 import { StackHandler } from "@stackframe/stack";
-import { stackServerApp } from "../../../stack";
+import { getStackServerApp } from "../../../stack";
 
-export default function Handler(props: unknown) {
-  return <StackHandler fullPage app={stackServerApp} routeProps={props} />;
+export default async function Handler(props: unknown) {
+  const app = await getStackServerApp();
+  return <StackHandler fullPage app={app} routeProps={props} />;
 }

@@ -1,5 +1,3 @@
-import { stackClientApp } from '@/stack-client'
-
 // Types pour les sessions Stack Auth
 export interface StackSession {
     id: string
@@ -25,16 +23,18 @@ export class StackAuthSessionService {
      * Note: Stack Auth ne fournit pas d'API directe pour lister toutes les sessions
      * Cette méthode simule la fonctionnalité en utilisant les données disponibles
      */
-    static async listSessions(): Promise<SessionListResponse> {
+    static async listSessions(user: any): Promise<SessionListResponse> {
         try {
-            const user = await stackClientApp.getUser()
             if (!user) {
-                throw new Error('Utilisateur non authentifié')
+                return {
+                    sessions: [],
+                    totalCount: 0
+                }
             }
 
             // Stack Auth ne fournit pas de liste complète des sessions
             // Nous créons une session simulée basée sur la session actuelle
-            const currentSession = await this.getCurrentSession()
+            const currentSession = await this.getCurrentSession(user)
 
             if (!currentSession) {
                 return {
@@ -48,7 +48,7 @@ export class StackAuthSessionService {
                 totalCount: 1
             }
         } catch (error) {
-            console.error('Erreur lors de la récupération des sessions:', error)
+            console.error('Error retrieving sessions:', error)
             throw error
         }
     }
@@ -56,9 +56,8 @@ export class StackAuthSessionService {
     /**
      * Récupère la session active actuelle
      */
-    static async getCurrentSession(): Promise<StackSession | null> {
+    static async getCurrentSession(user: any): Promise<StackSession | null> {
         try {
-            const user = await stackClientApp.getUser()
             if (!user) return null
 
             // Créer une session simulée basée sur les données utilisateur disponibles
@@ -76,7 +75,7 @@ export class StackAuthSessionService {
                 isCurrent: true
             }
         } catch (error) {
-            console.error('Erreur lors de la récupération de la session actuelle:', error)
+            console.error('Error retrieving current session:', error)
             return null
         }
     }
@@ -85,24 +84,23 @@ export class StackAuthSessionService {
      * Invalide une session spécifique
      * Pour Stack Auth, cela équivaut à déconnecter l'utilisateur
      */
-    static async revokeSession(sessionId: string): Promise<boolean> {
+    static async revokeSession(sessionId: string, user: any): Promise<boolean> {
         try {
-            const currentSession = await this.getCurrentSession()
+            const currentSession = await this.getCurrentSession(user)
 
             // Si c'est la session actuelle, déconnecter l'utilisateur
             if (currentSession && currentSession.id === sessionId) {
-                // Note: stackClientApp n'a pas de méthode signOut côté client
-                // La déconnexion doit être gérée via le hook useUser
-                console.warn('Utilisez user.signOut() depuis le hook useUser pour déconnecter')
+                // Note: Logout must be handled via the useUser hook
+                console.warn('Use user.signOut() from the useUser hook to logout')
                 return false
             }
 
-            // Pour les autres sessions, Stack Auth ne permet pas de les révoquer individuellement
-            // depuis le client, donc on retourne false
-            console.warn('Impossible de révoquer une session non-actuelle avec Stack Auth')
+            // For other sessions, Stack Auth doesn't allow individual revocation
+            // from the client, so we return false
+            console.warn('Cannot revoke non-current session with Stack Auth')
             return false
         } catch (error) {
-            console.error('Erreur lors de la révocation de la session:', error)
+            console.error('Error revoking session:', error)
             return false
         }
     }
@@ -113,12 +111,12 @@ export class StackAuthSessionService {
      */
     static async revokeAllOtherSessions(): Promise<boolean> {
         try {
-            // Stack Auth ne fournit pas de méthode pour révoquer d'autres sessions
-            // depuis le client. Cette fonctionnalité nécessiterait une API côté serveur
-            console.warn('La révocation d\'autres sessions n\'est pas supportée par Stack Auth côté client')
+            // Stack Auth doesn't provide a method to revoke other sessions
+            // from the client. This functionality would require a server-side API
+            console.warn('Revoking other sessions is not supported by Stack Auth on the client side')
             return true // Retourner true car il n'y a techniquement pas d'autres sessions à révoquer
         } catch (error) {
-            console.error('Erreur lors de la révocation des autres sessions:', error)
+            console.error('Error revoking other sessions:', error)
             return false
         }
     }
@@ -126,12 +124,11 @@ export class StackAuthSessionService {
     /**
      * Vérifie si l'utilisateur est actuellement connecté
      */
-    static async isAuthenticated(): Promise<boolean> {
+    static async isAuthenticated(user: any): Promise<boolean> {
         try {
-            const user = await stackClientApp.getUser()
             return user !== null
         } catch (error) {
-            console.error('Erreur lors de la vérification de l\'authentification:', error)
+            console.error('Error checking authentication:', error)
             return false
         }
     }
@@ -198,7 +195,7 @@ export class StackAuthSessionService {
     /**
      * Obtient des statistiques sur les sessions
      */
-    static async getSessionStats(): Promise<{
+    static async getSessionStats(user: any): Promise<{
         totalSessions: number
         activeSessions: number
         expiredSessions: number
@@ -206,7 +203,7 @@ export class StackAuthSessionService {
         newestSession?: Date
     }> {
         try {
-            const isAuth = await this.isAuthenticated()
+            const isAuth = await this.isAuthenticated(user)
 
             if (!isAuth) {
                 return {
@@ -216,7 +213,7 @@ export class StackAuthSessionService {
                 }
             }
 
-            const currentSession = await this.getCurrentSession()
+            const currentSession = await this.getCurrentSession(user)
 
             if (!currentSession) {
                 return {
@@ -237,7 +234,7 @@ export class StackAuthSessionService {
                 newestSession: new Date(currentSession.createdAt)
             }
         } catch (error) {
-            console.error('Erreur lors de la récupération des statistiques:', error)
+            console.error('Error retrieving statistics:', error)
             return {
                 totalSessions: 0,
                 activeSessions: 0,

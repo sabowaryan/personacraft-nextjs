@@ -53,7 +53,7 @@ export class GeminiClient {
     
     const promptVariables = {
       ...variables,
-      userContext: userContext || undefined
+      ...(userContext && { userContext })
     };
     
     return await PromptManager.buildPrompt(template, brief, promptVariables);
@@ -98,7 +98,14 @@ export class GeminiClient {
         culturalData: {
           music: [],
           movies: [],
+          tv: [],
+          books: [],
           brands: [],
+          restaurants: [],
+          travel: [],
+          fashion: [],
+          beauty: [],
+          food: [],
           socialMedia: []
         },
         painPoints: [
@@ -140,7 +147,14 @@ export class GeminiClient {
         culturalData: {
           music: [],
           movies: [],
+          tv: [],
+          books: [],
           brands: [],
+          restaurants: [],
+          travel: [],
+          fashion: [],
+          beauty: [],
+          food: [],
           socialMedia: []
         },
         painPoints: [

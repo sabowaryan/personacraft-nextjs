@@ -4,6 +4,7 @@ import { useUser } from "@stackframe/stack";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import LogoWithText from "@/components/LogoWithText";
 
 export default function OnboardingPage() {
   const user = useUser();
@@ -66,7 +67,12 @@ export default function OnboardingPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold text-purple-600 mb-2">PersonaCraft</h1>
+            <LogoWithText 
+              size="xl" 
+              variant="primary" 
+              text="PersonaCraft" 
+              className="mb-2 justify-center" 
+            />
           </Link>
           <p className="text-gray-600">
             Personnalisez votre expérience pour des personas plus précis

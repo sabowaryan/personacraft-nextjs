@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { stackServerApp } from '@/stack';
 
-const prisma = new PrismaClient();
+import { getStackServerApp } from '@/stack-server'
+
+const { prisma } = await import('@/lib/prisma');
+
 
 export async function GET(request: NextRequest) {
   try {
-    // Vérifier l'authentification
+    const stackServerApp = await getStackServerApp();
     const user = await stackServerApp.getUser();
-    if (!user) {
+    if (!user || !user.primaryEmail) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
     // Vérifier les permissions
     const userWithRole = await prisma.user.findUnique({
-      where: { stackId: user.id },
+      where: { email: user.primaryEmail },
       include: {
-        role: {
+        roles: {
           include: {
-            permissions: {
+            role: {
               include: {
-                permission: true
+                permissions: {
+                  include: {
+                    permission: true
+                  }
+                }
               }
             }
           }
@@ -28,8 +33,10 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const hasReadRolePermission = userWithRole?.role?.permissions.some(
-      (rp: any) => rp.permission.name === 'read_role'
+    const hasReadRolePermission = userWithRole?.roles.some(
+      (userRole: any) => userRole.role.permissions.some(
+        (rp: any) => rp.permission.name === 'read_role'
+      )
     );
 
     if (!hasReadRolePermission) {

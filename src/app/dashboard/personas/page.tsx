@@ -7,6 +7,7 @@ import BriefForm from '@/components/forms/BriefForm';
 import { usePersona } from '@/hooks/use-persona';
 import { useExport } from '@/hooks/use-export';
 import { useStackSessions } from '@/hooks/use-stack-sessions';
+import { PersonaMigration } from '@/components/personas/PersonaMigration';
 import { FILTER_OPTIONS, SORT_OPTIONS, DEFAULT_EXPORT_CONFIG } from '@/data/form-constants';
 
 // Constants moved to separate file for better bundle optimization
@@ -249,6 +250,9 @@ export default function PersonasPage() {
           {isExporting ? `Export... ${exportProgress}%` : 'Exporter Tout'}
         </button>
       </div>
+
+      {/* Migration des personas */}
+      <PersonaMigration />
 
 
 

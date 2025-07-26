@@ -97,8 +97,10 @@ export class PromptManager {
 
         // Remplacer toutes les variables
         Object.entries(finalVariables).forEach(([key, value]) => {
-            const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-            prompt = prompt.replace(regex, value.toString());
+            if (value !== undefined && value !== null) {
+                const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+                prompt = prompt.replace(regex, value.toString());
+            }
         });
 
         return prompt.trim();

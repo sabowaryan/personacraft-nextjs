@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getQlooClient } from '@/lib/api/qloo';
+import { getStackServerApp } from '@/stack-server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Vérifier l'authentification
+    const stackServerApp = await getStackServerApp();
+    const user = await  stackServerApp.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
     const { personas } = await request.json();
 
     if (!personas || !Array.isArray(personas)) {
@@ -14,6 +25,26 @@ export async function POST(request: NextRequest) {
 
     const qlooClient = getQlooClient();
     const enrichedPersonas = await qlooClient.enrichPersonas(personas);
+
+    // 🔍 LOG DÉTAILLÉ: Données finales envoyées au client
+    console.log('\n=== DONNÉES FINALES ENVOYÉES AU CLIENT ===');
+    console.log('Nombre de personas enrichies:', enrichedPersonas.length);
+    enrichedPersonas.forEach((persona, index) => {
+      console.log(`\nPersona ${index + 1}: ${persona.name || 'Sans nom'}`);
+      if (persona.culturalData) {
+        console.log('  Données culturelles présentes:');
+        Object.entries(persona.culturalData).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            console.log(`    ${key}: ${value.length} éléments -`, value);
+          } else {
+            console.log(`    ${key}:`, value);
+          }
+        });
+      } else {
+        console.log('  ⚠️ Aucune donnée culturelle');
+      }
+    });
+    console.log('=== FIN DONNÉES FINALES ===\n');
 
     return NextResponse.json({
       success: true,

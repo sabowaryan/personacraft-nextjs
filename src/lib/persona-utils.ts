@@ -20,7 +20,14 @@ export function validateAndCleanPersona(persona: Partial<Persona>): Persona {
   const defaultCulturalData: CulturalData = {
     music: [],
     movies: [],
+    tv: [],
+    books: [],
     brands: [],
+    restaurants: [],
+    travel: [],
+    fashion: [],
+    beauty: [],
+    food: [],
     socialMedia: []
   };
 
@@ -51,11 +58,7 @@ export function validateAndCleanPersona(persona: Partial<Persona>): Persona {
     },
     culturalData: {
       ...defaultCulturalData,
-      ...persona.culturalData,
-      music: persona.culturalData?.music || [],
-      movies: persona.culturalData?.movies || [],
-      brands: persona.culturalData?.brands || [],
-      socialMedia: persona.culturalData?.socialMedia || []
+      ...persona.culturalData
     },
     painPoints: persona.painPoints || [],
     goals: persona.goals || [],
@@ -94,7 +97,7 @@ export function hasValidPsychographics(persona: Persona): boolean {
  * Génère un ID unique pour un persona
  */
 function generateId(): string {
-  return `persona_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `persona_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 }
 
 /**

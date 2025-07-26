@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { stackServerApp } from '@/stack'
-import { prisma } from '@/lib/prisma'
+import { getStackServerApp } from '@/stack-server'
+const { prisma } = await import('@/lib/prisma');
+
+import { ensureUserExists, handleForeignKeyError } from '@/lib/user-utils'
 
 export async function POST(request: NextRequest) {
     try {
         // Vérifier l'authentification
+        const stackServerApp = await getStackServerApp();
         const user = await stackServerApp.getUser()
         if (!user) {
             return NextResponse.json(
@@ -12,6 +15,9 @@ export async function POST(request: NextRequest) {
                 { status: 401 }
             )
         }
+
+        // Ensure user exists in database before proceeding
+        await ensureUserExists(user)
 
         const { briefs } = await request.json()
 
@@ -60,10 +66,10 @@ export async function POST(request: NextRequest) {
         })
 
     } catch (error) {
-        console.error('Erreur lors de la migration des briefs:', error)
+        const errorResponse = handleForeignKeyError(error, 'briefs migration')
         return NextResponse.json(
-            { error: 'Erreur interne du serveur' },
-            { status: 500 }
+            { error: errorResponse.error },
+            { status: errorResponse.status }
         )
     }
 }
