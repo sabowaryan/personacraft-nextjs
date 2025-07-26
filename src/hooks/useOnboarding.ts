@@ -9,14 +9,14 @@ export function useOnboarding() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user && !user.clientMetadata?.onboarded) {
+    if (user && !user.clientReadOnlyMetadata?.onboardedAt) {
       router.push('/onboarding');
     }
   }, [user, router]);
 
   return {
-    isOnboarded: user?.clientMetadata?.onboarded || false,
-    userProfile: user?.clientMetadata || {},
+    isOnboarded: user?.clientReadOnlyMetadata?.onboardedAt || false,
+    userProfile: user?.clientReadOnlyMetadata || {},
   };
 }
 

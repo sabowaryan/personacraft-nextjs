@@ -6,34 +6,87 @@ import { permissionService } from './services/permissionService';
 export async function middleware(request: NextRequest) {
   const start = Date.now();
 
-  const session = await stackServerApp.getSession();
+  // Routes d'API d'authentification qui doivent être accessibles sans authentification
+  const publicApiRoutes = ['/api/auth/', '/api/webhooks/'];
+  const isPublicApiRoute = publicApiRoutes.some(route => request.nextUrl.pathname.startsWith(route));
 
-  // Protéger les routes nécessitant une authentification
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!session || !session.user) {
-      return NextResponse.redirect(new URL('/handler/signin', request.url));
+  if (isPublicApiRoute) {
+    console.log(`Allowing access to public API route: ${request.nextUrl.pathname}`);
+    return NextResponse.next();
+  }
+
+  // Récupérer la session utilisateur avec Stack Auth
+  const user = await stackServerApp.getUser();
+
+  // Routes d'authentification - rediriger les utilisateurs connectés vers le dashboard
+  // Exception: permettre l'accès à /auth/verify-email pour les utilisateurs avec email non vérifié
+  const authRoutes = ['/auth/signin', '/auth/signup', '/handler/signin', '/handler/signup'];
+  const isAuthRoute = authRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+  const isVerifyEmailRoute = request.nextUrl.pathname === '/auth/verify-email';
+
+  // Handle verify-email route separately
+  if (isVerifyEmailRoute && user) {
+    // If email is already verified, redirect to dashboard
+    if (user.primaryEmailVerified) {
+      console.log(`Redirecting authenticated user from ${request.nextUrl.pathname} to /dashboard`);
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    // If email is not verified, allow access to verify-email page
+    return NextResponse.next();
+  }
+
+  if (isAuthRoute && user) {
+    // Si l'email n'est pas vérifié, rediriger vers la page de vérification
+    if (!user.primaryEmailVerified) {
+      console.log(`Redirecting user with unverified email from ${request.nextUrl.pathname} to /auth/verify-email`);
+      return NextResponse.redirect(new URL('/auth/verify-email', request.url));
+    }
+    console.log(`Redirecting authenticated user from ${request.nextUrl.pathname} to /dashboard`);
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // Routes protégées - rediriger les utilisateurs non connectés vers la connexion
+  const protectedRoutes = ['/dashboard', '/admin', '/create-persona'];
+  const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+
+  if (isProtectedRoute && !user) {
+    console.log(`Redirecting unauthenticated user from ${request.nextUrl.pathname} to /handler/signin`);
+    return NextResponse.redirect(new URL('/handler/signin', request.url));
+  }
+
+  // Vérification de l'email vérifié pour les routes protégées
+  if (isProtectedRoute && user && !user.primaryEmailVerified) {
+    console.log(`Redirecting user with unverified email from ${request.nextUrl.pathname} to /auth/verify-email`);
+    return NextResponse.redirect(new URL('/auth/verify-email', request.url));
+  }
+
+  // Vérification des permissions admin
+  if (request.nextUrl.pathname.startsWith('/admin') && user) {
+    try {
+      const isAdmin = await permissionService.hasPermission(user.id, 'admin_access');
+      if (!isAdmin) {
+        console.log(`Access denied for user ${user.id} to admin route`);
+        return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+      }
+    } catch (error) {
+      console.error('Error checking admin permissions:', error);
+      return NextResponse.json({ error: 'Erreur de vérification des permissions' }, { status: 500 });
     }
   }
 
-  // Exemple de vérification de permission pour une route spécifique
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!session || !session.user) {
-      return NextResponse.redirect(new URL('/handler/signin', request.url));
-    }
-    const isAdmin = await permissionService.hasPermission(session.user.id, 'admin_access');
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
-    }
-  }
-
-  // Exemple de vérification de limitation pour une route de création de persona
-  if (request.nextUrl.pathname.startsWith('/create-persona')) {
-    if (!session || !session.user) {
-      return NextResponse.redirect(new URL('/handler/signin', request.url));
-    }
-    const canCreate = await permissionService.checkPersonaLimit(session.user.id);
-    if (!canCreate) {
-      return NextResponse.json({ error: 'Limite de création de personas atteinte pour votre plan.' }, { status: 403 });
+  // Vérification des limites de création de personas
+  if (request.nextUrl.pathname.startsWith('/create-persona') && user) {
+    try {
+      const canCreate = await permissionService.checkPersonaLimit(user.id);
+      if (!canCreate) {
+        console.log(`Persona creation limit reached for user ${user.id}`);
+        return NextResponse.json({
+          error: 'Limite de création de personas atteinte pour votre plan.'
+        }, { status: 403 });
+      }
+    } catch (error) {
+      console.error('Error checking persona limit:', error);
+      return NextResponse.json({ error: 'Erreur de vérification des limites' }, { status: 500 });
     }
   }
 
@@ -47,7 +100,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/create-persona/:path*', '/api/:path*'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/create-persona/:path*', '/api/:path*', '/auth/:path*', '/handler/signin', '/handler/signup'],
 };
 
 

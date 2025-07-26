@@ -6,33 +6,16 @@ import { Persona } from '@/types';
 import BriefForm from '@/components/forms/BriefForm';
 import { usePersona } from '@/hooks/use-persona';
 import { useExport } from '@/hooks/use-export';
-import { useSession } from '@/hooks/use-session';
+import { useStackSessions } from '@/hooks/use-stack-sessions';
+import { FILTER_OPTIONS, SORT_OPTIONS, DEFAULT_EXPORT_CONFIG } from '@/data/form-constants';
 
-// Constantes pour les options de filtrage et tri
-const FILTER_OPTIONS = [
-  { value: 'all', label: 'Tous les scores' },
-  { value: 'high', label: 'Score élevé (90+)' },
-  { value: 'medium', label: 'Score moyen (75-89)' },
-  { value: 'low', label: 'Score faible (<75)' }
-] as const;
-
-const SORT_OPTIONS = [
-  { value: 'score', label: 'Trier par score' },
-  { value: 'name', label: 'Trier par nom' },
-  { value: 'age', label: 'Trier par âge' }
-] as const;
-
-// Configuration d'export par défaut
-const DEFAULT_EXPORT_CONFIG = {
-  includeMetadata: true,
-  includeAnalytics: false
-} as const;
+// Constants moved to separate file for better bundle optimization
 
 // Composant optimisé pour le badge de score de qualité
 const QualityScoreBadge = ({ score }: { score: number }) => {
   const getScoreConfig = (score: number) => {
-    if (score >= 90) return { 
-      bg: 'bg-gradient-to-r from-green-500 to-emerald-600', 
+    if (score >= 90) return {
+      bg: 'bg-gradient-to-r from-green-500 to-emerald-600',
       text: 'text-white',
       ring: 'ring-green-500/20',
       icon: (
@@ -41,8 +24,8 @@ const QualityScoreBadge = ({ score }: { score: number }) => {
         </svg>
       )
     };
-    if (score >= 75) return { 
-      bg: 'bg-gradient-to-r from-amber-500 to-orange-600', 
+    if (score >= 75) return {
+      bg: 'bg-gradient-to-r from-amber-500 to-orange-600',
       text: 'text-white',
       ring: 'ring-amber-500/20',
       icon: (
@@ -51,8 +34,8 @@ const QualityScoreBadge = ({ score }: { score: number }) => {
         </svg>
       )
     };
-    return { 
-      bg: 'bg-gradient-to-r from-red-500 to-rose-600', 
+    return {
+      bg: 'bg-gradient-to-r from-red-500 to-rose-600',
       text: 'text-white',
       ring: 'ring-red-500/20',
       icon: (
@@ -64,7 +47,7 @@ const QualityScoreBadge = ({ score }: { score: number }) => {
   };
 
   const config = getScoreConfig(score);
-  
+
   return (
     <div className={`inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold shadow-sm ring-1 ${config.bg} ${config.text} ${config.ring}`}>
       {config.icon}
@@ -91,7 +74,7 @@ export default function PersonasPage() {
     exportProgress
   } = useExport();
 
-  const { incrementGenerations } = useSession();
+  const { incrementGenerations } = useStackSessions();
 
   // États locaux pour l'UI
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,19 +88,19 @@ export default function PersonasPage() {
   // Charger les personas au montage et vérifier les données de template
   useEffect(() => {
     loadPersonas();
-    
+
     // Vérifier si on doit ouvrir automatiquement le modal avec des données de template
     const autoOpenModal = sessionStorage.getItem('autoOpenModal');
     const templateDataStr = sessionStorage.getItem('templateData');
     const shouldGoToLastStep = sessionStorage.getItem('goToLastStep');
-    
+
     if (autoOpenModal === 'true' && templateDataStr) {
       try {
         const parsedTemplateData = JSON.parse(templateDataStr);
         setTemplateData(parsedTemplateData);
         setGoToLastStep(shouldGoToLastStep === 'true');
         setShowModal(true);
-        
+
         // Nettoyer le sessionStorage après utilisation
         sessionStorage.removeItem('autoOpenModal');
         sessionStorage.removeItem('templateData');
@@ -135,7 +118,7 @@ export default function PersonasPage() {
   // Filtrage et tri optimisé avec useMemo
   const sortedPersonas = useMemo(() => {
     const searchLower = searchQuery.toLowerCase();
-    
+
     return personas
       .filter(persona => {
         const matchesSearch = persona.name.toLowerCase().includes(searchLower) ||
@@ -184,7 +167,7 @@ export default function PersonasPage() {
         for (const personaData of data.personas) {
           await addPersona(personaData);
         }
-        
+
         // Incrémenter le compteur de générations
         incrementGenerations();
         setShowModal(false);
@@ -208,8 +191,8 @@ export default function PersonasPage() {
 
   const handleExportJSON = useCallback(async (personasToExport: Persona[]) => {
     try {
-      await exportPersonas(personasToExport, { 
-        format: 'json', 
+      await exportPersonas(personasToExport, {
+        format: 'json',
         ...DEFAULT_EXPORT_CONFIG
       });
     } catch (error) {
@@ -220,8 +203,8 @@ export default function PersonasPage() {
 
   const handleExportCSV = useCallback(async (personasToExport: Persona[]) => {
     try {
-      await exportPersonas(personasToExport, { 
-        format: 'csv', 
+      await exportPersonas(personasToExport, {
+        format: 'csv',
         ...DEFAULT_EXPORT_CONFIG
       });
     } catch (error) {
@@ -232,8 +215,8 @@ export default function PersonasPage() {
 
   const handleExportAll = useCallback(async () => {
     try {
-      await exportAll({ 
-        format: 'json', 
+      await exportAll({
+        format: 'json',
         ...DEFAULT_EXPORT_CONFIG
       });
     } catch (error) {
@@ -262,7 +245,7 @@ export default function PersonasPage() {
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+          </svg>
           {isExporting ? `Export... ${exportProgress}%` : 'Exporter Tout'}
         </button>
       </div>
@@ -408,7 +391,7 @@ export default function PersonasPage() {
                   </svg>
                   <span>Voir détails</span>
                 </Link>
-                
+
                 <button
                   onClick={() => selectPersona(selectedPersona?.id === persona.id ? null : persona)}
                   className="px-4 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors inline-flex items-center space-x-2 shadow-sm"
@@ -418,7 +401,7 @@ export default function PersonasPage() {
                   </svg>
                   <span className="hidden sm:inline">{selectedPersona?.id === persona.id ? 'Masquer' : 'Aperçu'}</span>
                 </button>
-                
+
                 <button
                   onClick={() => handleDeletePersona(persona.id)}
                   className="px-4 py-3 bg-red-50 text-red-600 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors inline-flex items-center space-x-2 shadow-sm hover:shadow-md"
@@ -716,8 +699,8 @@ export default function PersonasPage() {
               </button>
             </div>
             <div className="p-6">
-              <BriefForm 
-                onSubmit={generatePersonas} 
+              <BriefForm
+                onSubmit={generatePersonas}
                 isLoading={isGenerating}
                 templateData={templateData}
                 goToLastStep={goToLastStep}

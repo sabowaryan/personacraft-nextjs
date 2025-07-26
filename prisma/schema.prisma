@@ -15,11 +15,22 @@ datasource db {
 }
 
 model Persona {
-  id          String   @id @default(uuid())
-  name        String
-  description String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  name              String
+  age               Int
+  occupation        String
+  location          String
+  demographics      Json
+  psychographics    Json
+  culturalData      Json
+  painPoints        String[]
+  goals             String[]
+  marketingInsights Json
+  qualityScore      Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 model Role {
@@ -81,14 +92,39 @@ model Plan {
 }
 
 model User {
-  id        String     @id @default(uuid())
-  email     String     @unique
-  name      String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  roles     UserRole[]
-  planId    String?
-  plan      Plan?      @relation(fields: [planId], references: [id])
+  id          String            @id @default(uuid())
+  email       String            @unique
+  name        String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  roles       UserRole[]
+  planId      String?
+  plan        Plan?             @relation(fields: [planId], references: [id])
+  personas    Persona[]
+  preferences UserPreferences?
+  briefs      SavedBrief[]
+}
+
+model UserPreferences {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  theme            String   @default("light")
+  language         String   @default("fr")
+  autoSave         Boolean  @default(true)
+  generationsCount Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SavedBrief {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 

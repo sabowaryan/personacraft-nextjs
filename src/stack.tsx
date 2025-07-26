@@ -8,6 +8,6 @@ export const stackServerApp = new StackServerApp({
     signIn: '/auth/signin',
     signUp: '/auth/signup',
   }
-});;
+});
 
 

@@ -3,7 +3,7 @@ import { getGeminiClient } from '@/lib/api/gemini';
 
 export async function POST(request: NextRequest) {
   try {
-    const { brief } = await request.json();
+    const { brief, userContext } = await request.json();
 
     if (!brief) {
       return NextResponse.json(
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     const geminiClient = getGeminiClient();
-    const personas = await geminiClient.generatePersonas(brief);
+    const personas = await geminiClient.generatePersonas(brief, userContext);
 
     return NextResponse.json({
       success: true,

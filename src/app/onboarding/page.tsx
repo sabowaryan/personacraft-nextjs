@@ -17,24 +17,40 @@ export default function OnboardingPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Redirect to signin if user is not authenticated
+  if (user === null) {
+    router.push('/auth/signin');
+    return null;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      await user.update({
-        clientMetadata: {
-          onboarded: true,
-          company: formData.company,
-          role: formData.role,
-          industry: formData.industry,
-          teamSize: formData.teamSize,
-          useCase: formData.useCase,
+      if (!user) {
+        console.error('Utilisateur non authentifié');
+        router.push('/auth/signin');
+        return;
+      }
+
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify(formData),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors de l\'onboarding');
+      }
+
       router.push('/dashboard');
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du profil:', error);
+      console.error('Erreur lors de l\'onboarding:', error);
+      // Vous pourriez ajouter un état d'erreur ici pour l'afficher à l'utilisateur
     } finally {
       setIsSubmitting(false);
     }

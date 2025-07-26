@@ -4,6 +4,7 @@ import { stackServerApp } from "../stack";
 import { Inter, Poppins } from 'next/font/google'
 import './globals.css'
 import ConditionalLayout from '@/components/ConditionalLayout'
+import SuspenseWrapper from '@/components/SuspenseWrapper'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -125,9 +126,11 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <StackProvider app={stackServerApp}>
           <StackTheme theme={customTheme}>
-            <ConditionalLayout>
-              {children}
-            </ConditionalLayout>
+            <SuspenseWrapper>
+              <ConditionalLayout>
+                {children}
+              </ConditionalLayout>
+            </SuspenseWrapper>
           </StackTheme>
         </StackProvider>
       </body>

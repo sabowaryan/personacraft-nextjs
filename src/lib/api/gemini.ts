@@ -21,13 +21,14 @@ export class GeminiClient {
 
   async generatePersonas(
     brief: string, 
+    userContext?: string,
     options: {
       promptType?: PromptType;
       variables?: Partial<typeof DEFAULT_PROMPT_VARIABLES>;
     } = {}
   ): Promise<Partial<Persona>[]> {
     try {
-      const prompt = this.buildPrompt(brief, options);
+      const prompt = await this.buildPrompt(brief, userContext, options);
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -39,17 +40,23 @@ export class GeminiClient {
     }
   }
 
-  private buildPrompt(
+  private async buildPrompt(
     brief: string, 
+    userContext?: string,
     options: {
       promptType?: PromptType;
       variables?: Partial<typeof DEFAULT_PROMPT_VARIABLES>;
     } = {}
-  ): string {
+  ): Promise<string> {
     const { promptType = this.defaultPromptType, variables = {} } = options;
     const template = PROMPTS[promptType];
     
-    return PromptManager.buildPrompt(template, brief, variables);
+    const promptVariables = {
+      ...variables,
+      userContext: userContext || undefined
+    };
+    
+    return await PromptManager.buildPrompt(template, brief, promptVariables);
   }
 
   private parsePersonasResponse(text: string, brief: string): Partial<Persona>[] {
@@ -182,12 +189,12 @@ export class GeminiClient {
   /**
    * Génère un prompt de test pour vérifier le formatage
    */
-  generateTestPrompt(promptType?: PromptType): string {
+  async generateTestPrompt(promptType?: PromptType): Promise<string> {
     const type = promptType || this.defaultPromptType;
     const template = PROMPTS[type];
     const testBrief = "Application mobile de fitness pour professionnels urbains actifs";
     
-    return PromptManager.buildPrompt(template, testBrief);
+    return await PromptManager.buildPrompt(template, testBrief);
   }
 
   async testConnection(): Promise<boolean> {

@@ -3,22 +3,22 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePersona } from '@/hooks/use-persona';
+import { useStackSessions } from '@/hooks/use-stack-sessions';
 
 export default function Dashboard() {
   const { personas } = usePersona();
-  const [sessionStats, setSessionStats] = useState({ count: 0, startTime: new Date() });
+  const { stats, currentSession, isLoading } = useStackSessions();
+  const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date());
   
   // Calculer le nombre de personas
   const personasCount = personas.length;
 
   useEffect(() => {
-    // Simuler les stats de session
-    const stored = localStorage.getItem('sessionCount');
-    setSessionStats({
-      count: stored ? parseInt(stored) : 0,
-      startTime: new Date()
-    });
-  }, []);
+    // Utiliser la session Stack Auth actuelle pour déterminer l'heure de début
+    if (currentSession) {
+      setSessionStartTime(new Date(currentSession.createdAt));
+    }
+  }, [currentSession]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-8">
@@ -47,7 +47,7 @@ export default function Dashboard() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Link
           href="/dashboard/personas"
           className="bg-white rounded-xl border border-neutral-200 p-8 hover:border-primary-300 hover:shadow-lg transition-all duration-200 group text-center"
@@ -95,6 +95,22 @@ export default function Dashboard() {
             Statistiques
           </div>
         </Link>
+
+        <Link
+          href="/dashboard/sessions"
+          className="bg-white rounded-xl border border-neutral-200 p-8 hover:border-purple-300 hover:shadow-lg transition-all duration-200 group text-center"
+        >
+          <div className="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center group-hover:bg-purple-200 transition-colors mx-auto mb-4">
+            <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-neutral-900 group-hover:text-purple-600 transition-colors mb-2">Sessions</h3>
+          <p className="text-neutral-600 mb-4">Gérez vos sessions actives</p>
+          <div className="inline-flex items-center px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm font-medium">
+            {isLoading ? '...' : `${stats.activeSessions} actives`}
+          </div>
+        </Link>
       </div>
 
       {/* Session Stats */}
@@ -106,17 +122,19 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-persona-violet/10 to-purple-100/50 rounded-2xl p-6 text-center border border-persona-violet/20">
-            <div className="text-3xl font-bold text-persona-violet mb-2">{sessionStats.count}</div>
-            <div className="text-sm font-medium text-slate-700 mb-1">Personas Créés</div>
-            <div className="text-xs text-slate-500">Cette session</div>
+            <div className="text-3xl font-bold text-persona-violet mb-2">
+              {isLoading ? '...' : stats.activeSessions}
+            </div>
+            <div className="text-sm font-medium text-slate-700 mb-1">Sessions Actives</div>
+            <div className="text-xs text-slate-500">Stack Auth</div>
           </div>
 
           <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-6 text-center border border-blue-200">
             <div className="text-3xl font-bold text-blue-600 mb-2">
-              {Math.floor((new Date().getTime() - sessionStats.startTime.getTime()) / (1000 * 60))}
+              {Math.floor((new Date().getTime() - sessionStartTime.getTime()) / (1000 * 60))}
             </div>
             <div className="text-sm font-medium text-slate-700 mb-1">Minutes</div>
-            <div className="text-xs text-slate-500">Temps actif</div>
+            <div className="text-xs text-slate-500">Session actuelle</div>
           </div>
 
           <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-2xl p-6 text-center border border-green-200">

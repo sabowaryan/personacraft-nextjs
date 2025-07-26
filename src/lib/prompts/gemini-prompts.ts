@@ -13,6 +13,8 @@ export interface PromptTemplate {
     expectedPersonaCount: number;
 }
 
+import TemplateLoader from '../template-loader';
+
 /**
  * Prompt principal pour la génération de personas
  */
@@ -23,48 +25,7 @@ export const PERSONA_GENERATION_PROMPT: PromptTemplate = {
     version: '2.0',
     language: 'fr',
     expectedPersonaCount: 2,
-    template: `
-En tant qu'expert en marketing et personas, génère exactement {{personaCount}} personas détaillés basés sur ce brief marketing :
-
-"{{brief}}"
-
-Pour chaque persona, fournis les informations suivantes au format JSON strict :
-- name: nom complet français
-- age: âge entre {{minAge}}-{{maxAge}} ans
-- occupation: métier spécifique et réaliste
-- location: ville française
-- bio: biographie courte et engageante (2-3 phrases) qui résume qui est cette personne
-- quote: citation authentique et personnelle qui reflète sa personnalité et ses valeurs (1 phrase entre guillemets)
-- demographics: { 
-    income: "tranche de revenus précise", 
-    education: "niveau d'études détaillé", 
-    familyStatus: "situation familiale" 
-  }
-- psychographics: {
-    personality: [{{personalityTraitCount}} traits de personnalité],
-    values: [{{valuesCount}} valeurs importantes],
-    interests: [{{interestsCount}} centres d'intérêt],
-    lifestyle: "description détaillée du style de vie"
-  }
-- painPoints: [{{painPointsCount}} points de douleur spécifiques et concrets]
-- goals: [{{goalsCount}} objectifs principaux mesurables]
-- marketingInsights: {
-    preferredChannels: [{{channelsCount}} canaux de communication préférés],
-    messagingTone: "ton de communication adapté",
-    buyingBehavior: "comportement d'achat détaillé"
-  }
-- qualityScore: nombre entre {{minQualityScore}} et {{maxQualityScore}}
-
-CONTRAINTES IMPORTANTES:
-- Réponds UNIQUEMENT avec un tableau JSON valide
-- AUCUN texte supplémentaire avant ou après
-- AUCUNE balise de formatage
-- Assure-toi que le JSON est parfaitement formaté
-- Chaque persona doit être unique et cohérent
-
-Format exact attendu:
-[{"name": "...", "age": 30, "occupation": "...", "location": "...", "bio": "...", "quote": "...", ...}, {"name": "...", "age": 35, "occupation": "...", "location": "...", "bio": "...", "quote": "...", ...}]
-`
+    template: '' // Will be loaded lazily
 };
 
 /**
@@ -77,27 +38,7 @@ export const PERSONA_GENERATION_SIMPLE: PromptTemplate = {
     version: '1.0',
     language: 'fr',
     expectedPersonaCount: 2,
-    template: `
-Crée {{personaCount}} personas marketing pour: "{{brief}}"
-
-Format JSON requis (réponse directe):
-[{
-  "name": "Prénom Nom",
-  "age": nombre,
-  "occupation": "métier",
-  "location": "ville, France",
-  "bio": "biographie courte et engageante",
-  "quote": "citation personnelle authentique",
-  "demographics": {"income": "revenus", "education": "études", "familyStatus": "famille"},
-  "psychographics": {"personality": ["trait1", "trait2"], "values": ["valeur1", "valeur2"], "interests": ["intérêt1", "intérêt2"], "lifestyle": "style de vie"},
-  "painPoints": ["problème1", "problème2", "problème3"],
-  "goals": ["objectif1", "objectif2", "objectif3"],
-  "marketingInsights": {"preferredChannels": ["canal1", "canal2"], "messagingTone": "ton", "buyingBehavior": "comportement"},
-  "qualityScore": nombre
-}]
-
-Réponds SEULEMENT avec le JSON, rien d'autre.
-`
+    template: '' // Will be loaded lazily
 };
 
 /**
@@ -110,34 +51,7 @@ export const PERSONA_GENERATION_B2B: PromptTemplate = {
     version: '1.0',
     language: 'fr',
     expectedPersonaCount: 2,
-    template: `
-Génère {{personaCount}} personas B2B professionnels pour ce contexte business :
-
-"{{brief}}"
-
-Focus sur les aspects professionnels :
-- Rôle et responsabilités dans l'entreprise
-- Processus de décision d'achat
-- Contraintes budgétaires et organisationnelles
-- Objectifs business et KPIs
-- Écosystème professionnel et influenceurs
-
-Format JSON strict (réponse directe):
-[{
-  "name": "Prénom Nom",
-  "age": nombre,
-  "occupation": "Titre professionnel précis",
-  "location": "Ville, France",
-  "bio": "biographie professionnelle concise",
-  "quote": "citation révélatrice de sa vision business",
-  "demographics": {"income": "salaire professionnel", "education": "formation", "familyStatus": "situation"},
-  "psychographics": {"personality": ["traits pro"], "values": ["valeurs business"], "interests": ["intérêts pro"], "lifestyle": "style de vie professionnel"},
-  "painPoints": ["défis business spécifiques"],
-  "goals": ["objectifs professionnels mesurables"],
-  "marketingInsights": {"preferredChannels": ["canaux B2B"], "messagingTone": "ton professionnel", "buyingBehavior": "processus d'achat B2B"},
-  "qualityScore": nombre
-}]
-`
+    template: '' // Will be loaded lazily
 };
 
 /**
@@ -164,14 +78,19 @@ export class PromptManager {
     /**
      * Construit un prompt en remplaçant les variables
      */
-    static buildPrompt(
+    static async buildPrompt(
         template: PromptTemplate,
         brief: string,
         variables: Partial<typeof DEFAULT_PROMPT_VARIABLES> = {}
-    ): string {
+    ): Promise<string> {
         const finalVariables = { ...DEFAULT_PROMPT_VARIABLES, ...variables };
 
+        // Load template if not already loaded
         let prompt = template.template;
+        if (!prompt) {
+            prompt = await TemplateLoader.loadTemplate(template.id);
+            template.template = prompt; // Cache it
+        }
 
         // Remplacer le brief
         prompt = prompt.replace(/\{\{brief\}\}/g, brief);
@@ -231,7 +150,7 @@ export class PromptManager {
     /**
      * Génère un prompt de test avec des données d'exemple
      */
-    static generateTestPrompt(templateId: string = 'persona-generation-v2'): string {
+    static async generateTestPrompt(templateId: string = 'persona-generation-v2'): Promise<string> {
         const template = this.getPromptById(templateId);
         if (!template) {
             throw new Error(`Template ${templateId} non trouvé`);
@@ -239,7 +158,7 @@ export class PromptManager {
 
         const testBrief = "Lancement d'une application mobile de fitness pour les professionnels urbains actifs qui manquent de temps pour aller en salle de sport.";
 
-        return this.buildPrompt(template, testBrief);
+        return await this.buildPrompt(template, testBrief);
     }
 }
 

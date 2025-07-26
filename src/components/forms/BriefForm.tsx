@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Building2, Target, Lightbulb, AlertTriangle, Plus, Sparkles, Users, Globe, MapPin, Calendar, History } from 'lucide-react';
-import { useSession } from '@/hooks/use-session';
+import { useBriefs } from '@/hooks/use-briefs';
+import { useUserPreferences } from '@/hooks/use-user-preferences';
+import { PREDEFINED_INTERESTS, PREDEFINED_VALUES } from '@/data/form-constants';
 
 export interface BriefFormData {
     brief: string;
@@ -24,54 +26,19 @@ interface BriefFormProps {
     goToLastStep?: boolean;
 }
 
-const PREDEFINED_INTERESTS = [
-    'Sport et fitness',
-    'Technologie',
-    'Voyage',
-    'Cuisine',
-    'Mode',
-    'Musique',
-    'Lecture',
-    'Cinéma',
-    'Art',
-    'Nature',
-    'Gaming',
-    'Photographie',
-    'Entrepreneuriat',
-    'Développement personnel',
-    'Famille',
-    'Santé et bien-être'
-];
-
-const PREDEFINED_VALUES = [
-    'Authenticité',
-    'Innovation',
-    'Durabilité',
-    'Qualité',
-    'Efficacité',
-    'Créativité',
-    'Collaboration',
-    'Respect',
-    'Transparence',
-    'Excellence',
-    'Simplicité',
-    'Sécurité',
-    'Liberté',
-    'Équilibre vie-travail',
-    'Responsabilité sociale',
-    'Tradition'
-];
+// Constants moved to separate file for better bundle optimization
 
 
 
 export default function BriefForm({ onSubmit, isLoading = false, templateData = null, goToLastStep = false }: BriefFormProps) {
-    const { session, savedBriefs, saveBrief, deleteBrief } = useSession();
+    const { savedBriefs, saveBrief, deleteBrief } = useBriefs();
+    const { preferences } = useUserPreferences();
     
     const [formData, setFormData] = useState<BriefFormData>({
         brief: '',
         ageRange: { min: 25, max: 45 },
         location: '',
-        language: session?.preferences.language || 'fr',
+        language: preferences.language,
         personaCount: 2,
         interests: [],
         values: []
@@ -82,12 +49,10 @@ export default function BriefForm({ onSubmit, isLoading = false, templateData = 
     const [activeStep, setActiveStep] = useState(1);
     const [showBriefHistory, setShowBriefHistory] = useState(false);
 
-    // Synchroniser la langue avec les préférences de session
+    // Synchroniser la langue avec les préférences utilisateur
     useEffect(() => {
-        if (session?.preferences.language) {
-            setFormData(prev => ({ ...prev, language: session.preferences.language }));
-        }
-    }, [session?.preferences.language]);
+        setFormData(prev => ({ ...prev, language: preferences.language }));
+    }, [preferences.language]);
 
     // Initialiser avec les données de template si disponibles
     useEffect(() => {
