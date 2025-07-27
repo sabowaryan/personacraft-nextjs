@@ -1,37 +1,91 @@
-import { Persona } from '@/types/index';
-import type {
-    UserProfileForCulturalData,
-    CulturalDataForPrompt,
-    QlooSignals,
-    CulturalCategory,
-    SocialMediaInsights,
-    EnrichedCulturalData,
-    QlooApiStatus,
-    QlooConnectionTest,
-    QlooSearchResult,
-    QlooAudience,
-    QlooTag,
-    QlooInsightsResponse,
-    QlooMappingMetadata,
-    QlooInfluencerInsight,
-    QlooBrandInfluence,
-    QlooDemographicAlignment,
-    QlooSocialMediaInsights,
-    QlooEnrichmentResult
-} from '@/types/qloo';
-import {
-    INTEREST_TO_QLOO_MAP,
-    VALUE_TO_QLOO_MAP,
-    KEYWORD_TO_QLOO_MAP,
-    FALLBACK_PATTERNS,
-    ENTITY_TYPE_MAP,
-    SUPPORTED_PARAMS_BY_ENTITY,
-    CONTENT_TYPE_MAP,
-    INFLUENCER_TYPE_MAP,
-    BRAND_TO_SOCIAL_MAP,
-    CITY_TO_ISO_MAP,
-    FALLBACK_DATA_MAP
-} from './qloo-mappings';
+import { Persona } from '../../types';
+
+// New interfaces for the refactored flow
+export interface UserProfileForCulturalData {
+    age: number;
+    location?: string;
+    interests: string[];      // From form
+    values: string[];         // From form
+    ageRange?: {
+        min: number;
+        max: number;
+    };
+    language?: 'fr' | 'en';
+    personaCount?: number;
+}
+
+export interface CulturalDataForPrompt {
+    music: string[];
+    movies: string[];
+    tv: string[];
+    books: string[];
+    brands: string[];
+    restaurants: string[];
+    travel: string[];
+    fashion: string[];
+    beauty: string[];
+    food: string[];
+    socialMediaPreferences: {
+        platforms: string[];
+        contentTypes: string[];
+        influencerTypes: string[];
+    };
+    demographicInsights: {
+        ageGroup: string;
+        primaryInterests: string[];
+        coreValues: string[];
+    };
+}
+
+export interface QlooSignals {
+    'signal.demographics.audiences'?: string;
+    'signal.demographics.location'?: string;
+    'signal.interests.tags'?: string;
+    [key: string]: string | undefined;
+}
+
+interface CulturalCategory {
+    name: string;
+    items: string[];
+    relevanceScore: number;
+    source: 'qloo' | 'fallback';
+}
+
+interface SocialMediaInsights {
+    primaryPlatforms: string[];
+    engagementStyle: string;
+    contentPreferences: string[];
+    demographicAlignment: {
+        ageGroup: string;
+        location: string;
+        platformUsage: Record<string, string>;
+    };
+}
+
+interface EnrichedCulturalData {
+    categories: {
+        music: CulturalCategory;
+        movies: CulturalCategory;
+        tv: CulturalCategory;
+        books: CulturalCategory;
+        brands: CulturalCategory;
+        restaurants: CulturalCategory;
+        travel: CulturalCategory;
+        fashion: CulturalCategory;
+        beauty: CulturalCategory;
+        food: CulturalCategory;
+    };
+    socialMedia: {
+        platforms: string[];
+        insights: SocialMediaInsights;
+    };
+    metadata: {
+        generatedAt: Date;
+        userProfile: UserProfileForCulturalData;
+        qlooApiCalls: number;
+        cacheHits: number;
+    };
+}
 
 export class QlooClient {
     private apiKey: string;
@@ -62,29 +116,29 @@ export class QlooClient {
         try {
             // 1. Map interests/values to Qloo signals
             const signals = this.mapUserInterestsAndValuesToQlooSignals(
-                userProfile.interests,
+                userProfile.interests, 
                 userProfile.values
             );
-
+            
             // 2. Fetch cultural data in parallel with signals
             const culturalData = await this.fetchAllCulturalCategories(
-                userProfile.age,
-                userProfile.location,
+                userProfile.age, 
+                userProfile.location, 
                 signals
             );
-
+            
             // 3. Format for Gemini prompts
             return this.formatCulturalDataForPrompt(culturalData, userProfile);
         } catch (error) {
             console.warn('Erreur nouveau flux Qloo, utilisation fallback:', error);
-
+            
             const errorObj = error instanceof Error ? error : new Error(String(error));
-
+            
             if (this.shouldFallbackToOldFlow(errorObj)) {
                 // Fallback to old flow would be handled by the route
                 throw errorObj;
             }
-
+            
             // Use static cultural data as fallback
             return this.generateFallbackCulturalData(userProfile);
         }
@@ -95,19 +149,59 @@ export class QlooClient {
      * Handles all predefined interests/values and manages unrecognized ones
      */
     private mapUserInterestsAndValuesToQlooSignals(
-        interests: string[],
+        interests: string[], 
         values: string[]
     ): QlooSignals {
         const signals: QlooSignals = {};
-
-
-
+        
+        // Complete mapping of all form interests to Qloo signals
+        // Based on PREDEFINED_INTERESTS from form-constants.ts
+        const interestMap: Record<string, string> = {
+            'Sport et fitness': 'fitness,sports,health',
+            'Technologie': 'technology,tech,innovation',
+            'Voyage': 'travel,tourism,adventure',
+            'Cuisine': 'food,cooking,culinary',
+            'Mode': 'fashion,style,clothing',
+            'Musique': 'music,audio,entertainment',
+            'Lecture': 'books,reading,literature',
+            'Cinéma': 'movies,film,entertainment',
+            'Art': 'art,creative,culture',
+            'Nature': 'outdoor,nature,environment',
+            'Gaming': 'gaming,esports,technology',
+            'Photographie': 'photography,visual,art',
+            'Entrepreneuriat': 'business,startup,entrepreneurship',
+            'Développement personnel': 'self-improvement,personal-development,wellness',
+            'Famille': 'family,parenting,lifestyle',
+            'Santé et bien-être': 'wellness,health,fitness'
+        };
+        
+        // Complete mapping of all form values to Qloo signals
+        // Based on PREDEFINED_VALUES from form-constants.ts
+        const valueMap: Record<string, string> = {
+            'Authenticité': 'authenticity,genuine,real',
+            'Innovation': 'innovation,technology,future',
+            'Durabilité': 'sustainability,eco-friendly,environment',
+            'Qualité': 'quality,premium,excellence',
+            'Efficacité': 'efficiency,productivity,optimization',
+            'Créativité': 'creativity,art,innovation',
+            'Collaboration': 'collaboration,teamwork,social',
+            'Respect': 'respect,ethics,values',
+            'Transparence': 'transparency,honesty,trust',
+            'Excellence': 'excellence,quality,premium',
+            'Simplicité': 'simplicity,minimalism,clean',
+            'Sécurité': 'security,safety,protection',
+            'Liberté': 'freedom,independence,flexibility',
+            'Équilibre vie-travail': 'work-life-balance,wellness,lifestyle',
+            'Responsabilité sociale': 'social-responsibility,community,ethics',
+            'Tradition': 'tradition,heritage,culture'
+        };
+        
         // Process interests with enhanced mapping
         const mappedInterests: string[] = [];
         const unrecognizedInterests: string[] = [];
-
+        
         interests.forEach(interest => {
-            const mappedInterest = INTEREST_TO_QLOO_MAP[interest];
+            const mappedInterest = interestMap[interest];
             if (mappedInterest) {
                 // Split multiple tags and add them all
                 mappedInterests.push(...mappedInterest.split(','));
@@ -117,13 +211,13 @@ export class QlooClient {
                 console.warn(`Intérêt non reconnu dans le mapping Qloo: "${interest}"`);
             }
         });
-
+        
         // Process values with enhanced mapping
         const mappedValues: string[] = [];
         const unrecognizedValues: string[] = [];
-
+        
         values.forEach(value => {
-            const mappedValue = VALUE_TO_QLOO_MAP[value];
+            const mappedValue = valueMap[value];
             if (mappedValue) {
                 // Split multiple tags and add them all
                 mappedValues.push(...mappedValue.split(','));
@@ -133,29 +227,29 @@ export class QlooClient {
                 console.warn(`Valeur non reconnue dans le mapping Qloo: "${value}"`);
             }
         });
-
+        
         // Combine mapped signals with priority weighting
         // Interests get higher priority as they're more specific to content preferences
         const prioritizedTags = [
             ...mappedInterests.map(tag => ({ tag, priority: 2 })),
             ...mappedValues.map(tag => ({ tag, priority: 1 }))
         ];
-
+        
         // Handle unrecognized interests/values by attempting generic mapping
         const genericMappedTags = this.handleUnrecognizedTerms([...unrecognizedInterests, ...unrecognizedValues]);
         prioritizedTags.push(...genericMappedTags.map(tag => ({ tag, priority: 0.5 })));
-
+        
         // Sort by priority and remove duplicates
         const sortedTags = prioritizedTags
             .sort((a, b) => b.priority - a.priority)
             .map(item => item.tag);
-
+        
         const uniqueTags = Array.from(new Set(sortedTags)).slice(0, 12); // Increased limit for better targeting
-
+        
         if (uniqueTags.length > 0) {
             signals['signal.interests.tags'] = uniqueTags.join(',');
         }
-
+        
         // Add metadata about mapping success for debugging and monitoring
         const mappingMetadata = {
             originalInterests: interests,
@@ -168,15 +262,15 @@ export class QlooClient {
             mappingSuccessRate: {
                 interests: interests.length > 0 ? (interests.length - unrecognizedInterests.length) / interests.length : 1,
                 values: values.length > 0 ? (values.length - unrecognizedValues.length) / values.length : 1,
-                overall: (interests.length + values.length) > 0 ?
+                overall: (interests.length + values.length) > 0 ? 
                     ((interests.length + values.length) - (unrecognizedInterests.length + unrecognizedValues.length)) / (interests.length + values.length) : 1
             }
         };
-
+        
         if (process.env.NODE_ENV === 'development') {
             console.log('Mapping Qloo signals:', mappingMetadata);
         }
-
+        
         // Store mapping metadata for potential analytics/monitoring
         if (typeof window !== 'undefined' && window.localStorage) {
             try {
@@ -191,7 +285,7 @@ export class QlooClient {
                 // Ignore localStorage errors
             }
         }
-
+        
         return signals;
     }
 
@@ -201,18 +295,149 @@ export class QlooClient {
      */
     private handleUnrecognizedTerms(unrecognizedTerms: string[]): string[] {
         if (unrecognizedTerms.length === 0) return [];
-
+        
         const genericMappings: string[] = [];
-
-        // Use imported keyword mapping for unrecognized terms
-
+        
+        // Comprehensive keyword mapping for unrecognized terms
+        const keywordMap: Record<string, string[]> = {
+            // Technology and Digital
+            'tech': ['technology', 'innovation'],
+            'digital': ['technology', 'innovation'],
+            'informatique': ['technology', 'business'],
+            'numérique': ['technology', 'innovation'],
+            'ordinateur': ['technology'],
+            'internet': ['technology', 'social'],
+            'web': ['technology', 'business'],
+            'mobile': ['technology'],
+            'app': ['technology', 'innovation'],
+            'logiciel': ['technology', 'business'],
+            'programmation': ['technology', 'creativity'],
+            'code': ['technology', 'creativity'],
+            
+            // Health, Wellness and Fitness
+            'santé': ['wellness', 'health'],
+            'bien-être': ['wellness', 'lifestyle'],
+            'fitness': ['fitness', 'health'],
+            'sport': ['fitness', 'health'],
+            'exercice': ['fitness', 'wellness'],
+            'yoga': ['wellness', 'fitness'],
+            'méditation': ['wellness', 'lifestyle'],
+            'nutrition': ['health', 'food'],
+            'régime': ['health', 'wellness'],
+            'mental': ['wellness', 'health'],
+            'physique': ['fitness', 'health'],
+            
+            // Creative and Artistic
+            'créatif': ['creativity', 'art'],
+            'artistique': ['art', 'creativity'],
+            'design': ['art', 'creativity'],
+            'dessin': ['art', 'creativity'],
+            'peinture': ['art', 'creativity'],
+            'sculpture': ['art', 'creativity'],
+            'musique': ['music', 'art'],
+            'danse': ['art', 'entertainment'],
+            'théâtre': ['art', 'entertainment'],
+            'écriture': ['creativity', 'books'],
+            'littérature': ['books', 'art'],
+            
+            // Business and Professional
+            'business': ['business', 'entrepreneurship'],
+            'entreprise': ['business', 'entrepreneurship'],
+            'professionnel': ['business', 'career'],
+            'carrière': ['business', 'career'],
+            'management': ['business', 'leadership'],
+            'leadership': ['business', 'leadership'],
+            'finance': ['business', 'finance'],
+            'marketing': ['business', 'creativity'],
+            'vente': ['business', 'communication'],
+            'commerce': ['business', 'entrepreneurship'],
+            'startup': ['business', 'entrepreneurship', 'innovation'],
+            
+            // Lifestyle and Personal
+            'lifestyle': ['lifestyle', 'wellness'],
+            'vie': ['lifestyle', 'wellness'],
+            'loisir': ['entertainment', 'lifestyle'],
+            'divertissement': ['entertainment', 'lifestyle'],
+            'hobby': ['lifestyle', 'creativity'],
+            'passion': ['lifestyle', 'creativity'],
+            'détente': ['wellness', 'lifestyle'],
+            'relaxation': ['wellness', 'lifestyle'],
+            'temps libre': ['lifestyle', 'entertainment'],
+            
+            // Social and Community
+            'social': ['social', 'community'],
+            'communauté': ['social', 'community'],
+            'famille': ['family', 'lifestyle'],
+            'amis': ['social', 'lifestyle'],
+            'réseau': ['social', 'business'],
+            'groupe': ['social', 'community'],
+            'équipe': ['collaboration', 'business'],
+            'collectif': ['collaboration', 'social'],
+            'bénévolat': ['social-responsibility', 'community'],
+            'solidarité': ['social-responsibility', 'community'],
+            
+            // Environmental and Sustainability
+            'environnement': ['sustainability', 'nature'],
+            'écologie': ['sustainability', 'environment'],
+            'vert': ['sustainability', 'environment'],
+            'durable': ['sustainability', 'quality'],
+            'bio': ['sustainability', 'health'],
+            'naturel': ['nature', 'sustainability'],
+            'recyclage': ['sustainability', 'environment'],
+            'énergie': ['sustainability', 'technology'],
+            'climat': ['sustainability', 'environment'],
+            
+            // Food and Culinary
+            'cuisine': ['food', 'creativity'],
+            'culinaire': ['food', 'art'],
+            'gastronomie': ['food', 'culture'],
+            'restaurant': ['food', 'lifestyle'],
+            'chef': ['food', 'creativity'],
+            'recette': ['food', 'creativity'],
+            'dégustation': ['food', 'lifestyle'],
+            'vin': ['food', 'culture'],
+            'boisson': ['food', 'lifestyle'],
+            
+            // Travel and Culture
+            'voyage': ['travel', 'culture'],
+            'tourisme': ['travel', 'lifestyle'],
+            'culture': ['culture', 'art'],
+            'tradition': ['culture', 'heritage'],
+            'histoire': ['culture', 'education'],
+            'patrimoine': ['culture', 'heritage'],
+            'découverte': ['travel', 'curiosity'],
+            'aventure': ['travel', 'adventure'],
+            'exploration': ['travel', 'adventure'],
+            
+            // Education and Learning
+            'éducation': ['education', 'learning'],
+            'apprentissage': ['learning', 'education'],
+            'formation': ['education', 'business'],
+            'étude': ['education', 'learning'],
+            'connaissance': ['learning', 'education'],
+            'savoir': ['learning', 'education'],
+            'compétence': ['learning', 'business'],
+            'développement': ['learning', 'business'],
+            
+            // Entertainment and Media
+            'spectacle': ['entertainment', 'art'],
+            'cinéma': ['movies', 'entertainment'],
+            'film': ['movies', 'entertainment'],
+            'série': ['entertainment', 'lifestyle'],
+            'télévision': ['entertainment', 'lifestyle'],
+            'radio': ['entertainment', 'music'],
+            'podcast': ['entertainment', 'learning'],
+            'jeu': ['gaming', 'entertainment'],
+            'gaming': ['gaming', 'technology']
+        };
+        
         // Process each unrecognized term
         unrecognizedTerms.forEach(term => {
             const lowerTerm = term.toLowerCase().trim();
             let termMapped = false;
-
+            
             // Direct keyword matching
-            for (const [keyword, mappings] of Object.entries(KEYWORD_TO_QLOO_MAP)) {
+            for (const [keyword, mappings] of Object.entries(keywordMap)) {
                 if (lowerTerm.includes(keyword) || keyword.includes(lowerTerm)) {
                     genericMappings.push(...mappings);
                     console.log(`Mapping générique trouvé: "${term}" -> [${mappings.join(', ')}] via "${keyword}"`);
@@ -220,13 +445,13 @@ export class QlooClient {
                     break;
                 }
             }
-
+            
             // If no direct match, try partial matching for compound terms
             if (!termMapped && lowerTerm.length > 3) {
                 const words = lowerTerm.split(/[\s\-_]+/);
                 words.forEach(word => {
                     if (word.length > 2) {
-                        for (const [keyword, mappings] of Object.entries(KEYWORD_TO_QLOO_MAP)) {
+                        for (const [keyword, mappings] of Object.entries(keywordMap)) {
                             if (word.includes(keyword) || keyword.includes(word)) {
                                 genericMappings.push(...mappings);
                                 console.log(`Mapping partiel trouvé: "${term}" (mot: "${word}") -> [${mappings.join(', ')}] via "${keyword}"`);
@@ -237,7 +462,7 @@ export class QlooClient {
                     }
                 });
             }
-
+            
             // If still no match, apply fallback strategy based on term characteristics
             if (!termMapped) {
                 const fallbackMapping = this.getFallbackMappingForTerm(term);
@@ -247,15 +472,15 @@ export class QlooClient {
                 }
             }
         });
-
+        
         // Remove duplicates and return
         const uniqueMappings = Array.from(new Set(genericMappings));
-
+        
         // Log summary for monitoring
         if (process.env.NODE_ENV === 'development' && unrecognizedTerms.length > 0) {
             console.log(`Traitement des termes non reconnus: ${unrecognizedTerms.length} termes, ${uniqueMappings.length} mappings générés`);
         }
-
+        
         return uniqueMappings;
     }
 
@@ -266,28 +491,63 @@ export class QlooClient {
     private getFallbackMappingForTerm(term: string): string[] {
         const lowerTerm = term.toLowerCase().trim();
         const fallbackMappings: string[] = [];
-
+        
         // Heuristic-based fallback mapping
         if (lowerTerm.length < 3) {
             return []; // Too short to meaningfully map
         }
-
-        // Use imported fallback patterns
-
+        
+        // Check for common suffixes and patterns
+        const patterns: Record<string, string[]> = {
+            // French patterns
+            'isme$': ['philosophy', 'culture'],
+            'tion$': ['business', 'education'],
+            'ment$': ['lifestyle', 'wellness'],
+            'ique$': ['art', 'creativity'],
+            'able$': ['sustainability', 'quality'],
+            
+            // Activity patterns
+            '^faire': ['creativity', 'lifestyle'],
+            '^jouer': ['entertainment', 'gaming'],
+            '^créer': ['creativity', 'art'],
+            '^apprendre': ['education', 'learning'],
+            '^découvrir': ['travel', 'learning'],
+            
+            // Technology patterns
+            'tech|digital|cyber|web|net': ['technology'],
+            'smart|intel|auto': ['technology', 'innovation'],
+            
+            // Wellness patterns
+            'zen|calm|peace|relax': ['wellness', 'lifestyle'],
+            'fit|strong|energy': ['fitness', 'health'],
+            
+            // Social patterns
+            'social|community|group|team': ['social', 'collaboration'],
+            'family|parent|child': ['family', 'lifestyle'],
+            
+            // Creative patterns
+            'art|create|design|style': ['creativity', 'art'],
+            'music|sound|audio': ['music', 'entertainment'],
+            
+            // Business patterns
+            'work|job|career|prof': ['business', 'career'],
+            'money|finance|invest': ['business', 'finance']
+        };
+        
         // Apply pattern matching
-        for (const [pattern, mappings] of Object.entries(FALLBACK_PATTERNS)) {
+        for (const [pattern, mappings] of Object.entries(patterns)) {
             const regex = new RegExp(pattern, 'i');
             if (regex.test(lowerTerm)) {
                 fallbackMappings.push(...mappings);
                 break; // Use first matching pattern
             }
         }
-
+        
         // If no pattern matches, provide generic lifestyle mapping for reasonable-length terms
         if (fallbackMappings.length === 0 && lowerTerm.length >= 4 && lowerTerm.length <= 20) {
             fallbackMappings.push('lifestyle');
         }
-
+        
         return fallbackMappings;
     }
 
@@ -295,21 +555,21 @@ export class QlooClient {
      * Fetches cultural data for all categories with signals
      */
     private async fetchAllCulturalCategories(
-        age: number,
-        location?: string,
+        age: number, 
+        location?: string, 
         signals?: QlooSignals
     ): Promise<EnrichedCulturalData> {
         const categories = ['music', 'movies', 'tv', 'books', 'brands', 'restaurants', 'travel', 'fashion', 'beauty', 'food'];
         const results = new Map<string, CulturalCategory>();
-
+        
         // Process in batches to respect API limits
         const batchSize = 3;
         let totalApiCalls = 0;
         let cacheHits = 0;
-
+        
         for (let i = 0; i < categories.length; i += batchSize) {
             const batch = categories.slice(i, i + batchSize);
-
+            
             const batchPromises = batch.map(async category => {
                 try {
                     const data = await this.fetchDataWithSignals(category, age, location, signals);
@@ -318,14 +578,14 @@ export class QlooClient {
                 } catch (error) {
                     console.warn(`Fallback pour ${category}:`, error);
                     cacheHits++;
-                    return {
-                        category,
-                        data: this.getFallbackDataForType(category),
-                        source: 'fallback' as const
+                    return { 
+                        category, 
+                        data: this.getFallbackDataForType(category), 
+                        source: 'fallback' as const 
                     };
                 }
             });
-
+            
             const batchResults = await Promise.all(batchPromises);
             batchResults.forEach(({ category, data, source }) => {
                 results.set(category, {
@@ -335,13 +595,13 @@ export class QlooClient {
                     source
                 });
             });
-
+            
             // Delay between batches
             if (i + batchSize < categories.length) {
                 await this.sleep(300);
             }
         }
-
+        
         return this.buildEnrichedCulturalData(results, age, location, totalApiCalls, cacheHits);
     }
 
@@ -350,15 +610,15 @@ export class QlooClient {
      * Integrates interest/value signals with demographic data
      */
     private async fetchDataWithSignals(
-        entityType: string,
-        age: number,
-        location?: string,
+        entityType: string, 
+        age: number, 
+        location?: string, 
         signals?: QlooSignals
     ): Promise<string[]> {
         // Create cache key that includes signals for proper caching
         const signalsKey = signals ? Object.entries(signals).map(([k, v]) => `${k}:${v}`).join('|') : 'none';
         const cacheKey = `${entityType}_${age}_${location || 'none'}_signals_${signalsKey}`;
-
+        
         // Check cache first
         const cached = this.cache.get(cacheKey);
         if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
@@ -368,7 +628,7 @@ export class QlooClient {
         const result = await this.makeRequestWithRetry(async () => {
             const mappedEntityType = this.mapEntityType(entityType);
             const params: Record<string, any> = {};
-
+            
             // Always provide demographic signal (required by API)
             if (age) {
                 const ageRange = this.getAgeRange(age);
@@ -376,12 +636,12 @@ export class QlooClient {
             } else {
                 params['signal.demographics.audiences'] = 'millennials';
             }
-
+            
             // Add location if available
             if (location) {
                 params['signal.demographics.location'] = this.normalizeLocation(location);
             }
-
+            
             // Add all signals from the mapping
             if (signals) {
                 Object.entries(signals).forEach(([key, value]) => {
@@ -390,10 +650,10 @@ export class QlooClient {
                     }
                 });
             }
-
+            
             // Build validated URL with all parameters
             const url = this.buildValidatedUrl(entityType, params, 3);
-
+            
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -419,17 +679,17 @@ export class QlooClient {
                         }
                         throw new Error(`400_BAD_REQUEST_${entityType}`);
                     }
-
+                    
                     if (response.status === 403) {
                         throw new Error(`403_FORBIDDEN_${entityType}`);
                     }
-
+                    
                     if (response.status === 429) {
                         const retryAfter = response.headers.get('Retry-After');
                         const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : 2000;
                         throw new Error(`429_RATE_LIMIT_${waitTime}`);
                     }
-
+                    
                     throw new Error(`HTTP_${response.status}_${entityType}`);
                 }
 
@@ -449,7 +709,7 @@ export class QlooClient {
 
         // Cache the result with signals-aware key
         this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
-
+        
         return result;
     }
 
@@ -507,7 +767,7 @@ export class QlooClient {
      * Formats cultural data for Gemini prompts
      */
     private formatCulturalDataForPrompt(
-        enrichedData: EnrichedCulturalData,
+        enrichedData: EnrichedCulturalData, 
         userProfile: UserProfileForCulturalData
     ): CulturalDataForPrompt {
         return {
@@ -538,8 +798,19 @@ export class QlooClient {
      * Infers content types from interests
      */
     private inferContentTypes(interests: string[]): string[] {
+        const contentTypeMap: Record<string, string[]> = {
+            'Technologie': ['Tech reviews', 'Tutorials', 'Innovation news'],
+            'Mode': ['Fashion hauls', 'Style guides', 'Trend updates'],
+            'Sport et fitness': ['Workout videos', 'Health tips', 'Athletic content'],
+            'Voyage': ['Travel vlogs', 'Destination guides', 'Cultural content'],
+            'Cuisine': ['Recipe videos', 'Food reviews', 'Cooking tutorials'],
+            'Musique': ['Music videos', 'Artist interviews', 'Concert footage'],
+            'Gaming': ['Gaming streams', 'Reviews', 'Esports content'],
+            'Art': ['Art tutorials', 'Gallery tours', 'Creative process'],
+            'Photographie': ['Photo tutorials', 'Equipment reviews', 'Portfolio showcases']
+        };
 
-        const contentTypes = interests.flatMap(interest => CONTENT_TYPE_MAP[interest] || []);
+        const contentTypes = interests.flatMap(interest => contentTypeMap[interest] || []);
         return Array.from(new Set(contentTypes)).slice(0, 5);
     }
 
@@ -547,15 +818,23 @@ export class QlooClient {
      * Infers influencer types from values
      */
     private inferInfluencerTypes(values: string[]): string[] {
+        const influencerTypeMap: Record<string, string[]> = {
+            'Authenticité': ['Lifestyle influencers', 'Personal brand creators'],
+            'Innovation': ['Tech influencers', 'Thought leaders'],
+            'Durabilité': ['Eco-conscious creators', 'Sustainable living advocates'],
+            'Créativité': ['Artists', 'Creative directors', 'Design influencers'],
+            'Entrepreneuriat': ['Business coaches', 'Startup founders'],
+            'Santé et bien-être': ['Wellness coaches', 'Fitness influencers']
+        };
 
-        const influencerTypes = values.flatMap(value => INFLUENCER_TYPE_MAP[value] || []);
+        const influencerTypes = values.flatMap(value => influencerTypeMap[value] || []);
         return Array.from(new Set(influencerTypes)).slice(0, 4);
     }
 
     /**
      * Generates social media insights
      */
-    private generateSocialMediaInsights(age: number, location?: string): SocialMediaInsights {
+    private generateSocialMediaInsights(age: number, location?: string): any {
         return {
             primaryPlatforms: this.getPrimaryPlatformsForAge(age),
             engagementStyle: this.getEngagementStyleForAge(age),
@@ -613,7 +892,7 @@ export class QlooClient {
      */
     private shouldFallbackToOldFlow(error: Error): boolean {
         const errorMessage = error.message.toLowerCase();
-
+        
         // Critical errors that should trigger old flow fallback
         const criticalErrors = [
             'network error',
@@ -623,7 +902,7 @@ export class QlooClient {
             '502',
             '500'
         ];
-
+        
         return criticalErrors.some(criticalError => errorMessage.includes(criticalError));
     }
 
@@ -749,7 +1028,7 @@ export class QlooClient {
                     socialMedia: socialMediaEnrichment.platforms
                 },
                 // Store insights for potential UI display
-                socialMediaInsights: socialMediaEnrichment
+                socialMediaInsights: socialMediaEnrichment.insights
             };
 
         } catch (error) {
@@ -819,7 +1098,7 @@ export class QlooClient {
                         try {
                             const errorBody = await response.text();
                             if (errorBody.includes('does not yet support audience requests')) {
-
+        
                                 throw new Error(`400_AUDIENCE_NOT_SUPPORTED_${entityType}`);
                             }
 
@@ -981,9 +1260,24 @@ export class QlooClient {
     }
 
     private mapEntityType(entityType: string): string {
-        // Use imported entity type mapping
+        // Mapper vers les types d'entités supportés selon la documentation
+        const entityMap: { [key: string]: string } = {
+            'music': 'urn:entity:artist',
+            'brand': 'urn:entity:brand',
+            'movie': 'urn:entity:movie',
+            'tv': 'urn:entity:tv_show',
+            'book': 'urn:entity:book',
+            'restaurant': 'urn:entity:place',
+            'travel': 'urn:entity:place',
+            'fashion': 'urn:entity:brand',
+            'beauty': 'urn:entity:brand',
+            'food': 'urn:entity:place',
+            'podcast': 'urn:entity:podcast',
+            'video_game': 'urn:entity:video_game',
+            'person': 'urn:entity:person'
+        };
 
-        return ENTITY_TYPE_MAP[entityType] || `urn:entity:${entityType}`;
+        return entityMap[entityType] || `urn:entity:${entityType}`;
     }
 
     private mapOccupationToSignal(occupation: string): string | null {
@@ -1003,7 +1297,7 @@ export class QlooClient {
         return null;
     }
 
-    private async enrichSocialMediaWithQloo(persona: Partial<Persona>): Promise<QlooEnrichmentResult> {
+    private async enrichSocialMediaWithQloo(persona: Partial<Persona>): Promise<{ platforms: string[], insights: any }> {
         try {
             // Récupérer des influenceurs/personnes et marques via Qloo pour enrichir les données sociales
             const [influencers, brands, musicArtists] = await Promise.all([
@@ -1041,13 +1335,26 @@ export class QlooClient {
         brands: string[],
         musicArtists: string[],
         persona: Partial<Persona>
-    ): QlooEnrichmentResult {
+    ): { platforms: string[], insights: any } {
         const platforms: string[] = [];
-        const insights: QlooSocialMediaInsights = {
-            audienceMatches: [],
-            brandInfluence: [],
-            contentPreferences: [],
-            demographicAlignment: []
+        const insights = {
+            audienceMatches: [] as Array<{
+                name: string
+                relevanceFactors: string[]
+                estimatedFollowingOverlap: number
+            }>,
+            brandInfluence: [] as Array<{
+                brand: string
+                category: string
+                platforms: string[]
+                relevanceScore: number
+            }>,
+            contentPreferences: [] as string[],
+            demographicAlignment: [] as Array<{
+                ageGroup: string
+                primaryPlatforms: string[]
+                engagementStyle: string
+            }>
         };
 
         // Enhanced mapping basé sur les influenceurs/personnes avec insights
@@ -1133,8 +1440,38 @@ export class QlooClient {
     }
 
     private getBrandSocialPlatforms(brand: string): string[] {
+        const brandToSocialMap: { [key: string]: string[] } = {
+            // Tech brands
+            'Apple': ['Twitter', 'YouTube', 'Instagram'],
+            'Google': ['YouTube', 'Twitter', 'LinkedIn'],
+            'Microsoft': ['LinkedIn', 'Twitter', 'YouTube'],
+            'Tesla': ['Twitter', 'YouTube', 'Instagram'],
+            'Meta': ['Instagram', 'Facebook', 'Twitter'],
 
-        return BRAND_TO_SOCIAL_MAP[brand] || [];
+            // Fashion & Lifestyle
+            'Nike': ['Instagram', 'TikTok', 'Twitter', 'YouTube'],
+            'Adidas': ['Instagram', 'TikTok', 'Twitter'],
+            'Zara': ['Instagram', 'Pinterest', 'TikTok'],
+            'H&M': ['Instagram', 'TikTok', 'Pinterest'],
+            'Louis Vuitton': ['Instagram', 'Pinterest', 'YouTube'],
+
+            // Beauty
+            'Sephora': ['Instagram', 'TikTok', 'YouTube', 'Pinterest'],
+            'L\'Oréal': ['Instagram', 'YouTube', 'TikTok'],
+            'MAC': ['Instagram', 'YouTube', 'TikTok'],
+
+            // Entertainment
+            'Netflix': ['Instagram', 'Twitter', 'TikTok', 'YouTube'],
+            'Disney': ['Instagram', 'YouTube', 'TikTok', 'Facebook'],
+            'Spotify': ['Instagram', 'Twitter', 'TikTok'],
+
+            // Food & Beverage
+            'Starbucks': ['Instagram', 'TikTok', 'Twitter'],
+            'McDonald\'s': ['Instagram', 'TikTok', 'Twitter', 'Facebook'],
+            'Coca-Cola': ['Instagram', 'Facebook', 'Twitter', 'YouTube']
+        };
+
+        return brandToSocialMap[brand] || [];
     }
 
     private getArtistSocialPlatforms(artist: string): string[] {
@@ -1153,23 +1490,15 @@ export class QlooClient {
         return musicPlatforms;
     }
 
-    private analyzeInfluencerProfile(influencer: string, persona: Partial<Persona>): QlooInfluencerInsight {
+    private analyzeInfluencerProfile(influencer: string, persona: Partial<Persona>): any {
         const profile = influencer.toLowerCase();
-        const factors: string[] = [];
-
-        if (profile.includes('tech') && persona.occupation?.toLowerCase().includes('développeur')) {
-            factors.push('Tech alignment');
-        }
-        if (profile.includes('marketing') && persona.occupation?.toLowerCase().includes('marketing')) {
-            factors.push('Professional alignment');
-        }
-        if (profile.includes('design') && persona.occupation?.toLowerCase().includes('design')) {
-            factors.push('Creative alignment');
-        }
-
         return {
             name: influencer,
-            relevanceFactors: factors,
+            relevanceFactors: [
+                profile.includes('tech') && persona.occupation?.toLowerCase().includes('développeur') ? 'Tech alignment' : null,
+                profile.includes('marketing') && persona.occupation?.toLowerCase().includes('marketing') ? 'Professional alignment' : null,
+                profile.includes('design') && persona.occupation?.toLowerCase().includes('design') ? 'Creative alignment' : null
+            ].filter(Boolean),
             estimatedFollowingOverlap: Math.floor(Math.random() * 40) + 10 // Simulated overlap percentage
         };
     }
@@ -1307,7 +1636,22 @@ export class QlooClient {
     }
 
     private getFallbackDataForType(type: string): string[] {
-        return FALLBACK_DATA_MAP[type] || [];
+        switch (type) {
+            case 'music': return ['Indie Pop', 'Electronic', 'Jazz moderne'];
+            case 'brand': return ['Apple', 'Zara', 'Sephora', 'Airbnb'];
+            case 'movie': return ['Films indépendants', 'Documentaires', 'Comédies'];
+            case 'tv': return ['Séries Netflix', 'Documentaires', 'Comédies'];
+            case 'book': return ['Romans contemporains', 'Développement personnel', 'Biographies'];
+            case 'restaurant': return ['Restaurants bio', 'Cuisine fusion', 'Food trucks'];
+            case 'travel': return ['Voyages éco-responsables', 'City breaks', 'Aventures outdoor'];
+            case 'fashion': return ['Mode durable', 'Streetwear', 'Vintage'];
+            case 'beauty': return ['Cosmétiques naturels', 'Skincare coréenne', 'Maquillage minimaliste'];
+            case 'food': return ['Cuisine végétarienne', 'Superfoods', 'Cuisine locale'];
+            case 'podcast': return ['True Crime', 'Tech Talk', 'Développement personnel'];
+            case 'video_game': return ['Jeux indépendants', 'RPG', 'Jeux de stratégie'];
+            case 'person': return ['Influenceurs lifestyle', 'Experts tech', 'Créateurs de contenu'];
+            default: return [];
+        }
     }
     async searchTags(query: string, take: number = 10): Promise<string[]> {
         try {
@@ -1332,7 +1676,7 @@ export class QlooClient {
         }
     }
 
-    async searchEntities(query: string, types: string[] = ['artist', 'movie', 'brand'], take: number = 10): Promise<QlooSearchResult[]> {
+    async searchEntities(query: string, types: string[] = ['artist', 'movie', 'brand'], take: number = 10): Promise<any[]> {
         try {
             const typesParam = types.join(',');
             const response = await fetch(
@@ -1356,7 +1700,7 @@ export class QlooClient {
         }
     }
 
-    async getAudiences(take: number = 50): Promise<QlooAudience[]> {
+    async getAudiences(take: number = 50): Promise<any[]> {
         try {
             const response = await fetch(
                 `${this.baseUrl}/v2/audiences?take=${take}`,
@@ -1425,9 +1769,20 @@ export class QlooClient {
      * Basé sur le guide des paramètres disponibles par type d'entité
      */
     private validateParametersForEntityType(entityType: string, params: Record<string, any>): boolean {
-        // Use imported supported parameters mapping
+        const supportedParams: { [key: string]: string[] } = {
+            'urn:entity:artist': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:movie': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:tv_show': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:book': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:brand': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:place': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:destination': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:podcast': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:video_game': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location'],
+            'urn:entity:person': ['signal.demographics.audiences', 'signal.interests.tags', 'signal.demographics.location']
+        };
 
-        const allowedParams = SUPPORTED_PARAMS_BY_ENTITY[entityType] || [];
+        const allowedParams = supportedParams[entityType] || [];
         const paramKeys = Object.keys(params);
 
         return paramKeys.every(key => allowedParams.includes(key));
@@ -1503,9 +1858,39 @@ export class QlooClient {
             return location;
         }
 
-        // Use imported city to ISO mapping
+        // Mapping des villes courantes vers codes ISO-3166-2
+        const cityToIsoMap: { [key: string]: string } = {
+            'paris': 'FR-75',
+            'lyon': 'FR-69',
+            'marseille': 'FR-13',
+            'toulouse': 'FR-31',
+            'nice': 'FR-06',
+            'london': 'GB-LND',
+            'manchester': 'GB-MAN',
+            'birmingham': 'GB-BIR',
+            'new york': 'US-NY',
+            'los angeles': 'US-CA',
+            'chicago': 'US-IL',
+            'houston': 'US-TX',
+            'miami': 'US-FL',
+            'toronto': 'CA-ON',
+            'vancouver': 'CA-BC',
+            'montreal': 'CA-QC',
+            'berlin': 'DE-BE',
+            'munich': 'DE-BY',
+            'hamburg': 'DE-HH',
+            'madrid': 'ES-MD',
+            'barcelona': 'ES-CT',
+            'rome': 'IT-RM',
+            'milan': 'IT-MI',
+            'amsterdam': 'NL-NH',
+            'brussels': 'BE-BRU',
+            'zurich': 'CH-ZH',
+            'geneva': 'CH-GE'
+        };
+
         const normalizedCity = location.toLowerCase().trim();
-        return CITY_TO_ISO_MAP[normalizedCity] || location;
+        return cityToIsoMap[normalizedCity] || location;
     }
 
     getApiStatus(): { hasApiKey: boolean; baseUrl: string } {
