@@ -80,324 +80,18 @@ export class QlooClient {
 
             const errorObj = error instanceof Error ? error : new Error(String(error));
 
-            if (this.shouldFallbackToOldFlow(errorObj)) {
-                // Fallback to old flow would be handled by the route
-                throw errorObj;
-            }
-
-            // Use static cultural data as fallback
-            return this.generateFallbackCulturalData(userProfile);
-        }
+    private shouldFallbackToOldFlow(error: Error): boolean {
+        // Détecter les erreurs critiques qui justifient un basculement vers l'ancien flux
+        // Exemples: API Key invalide, erreurs d'authentification, erreurs de quota, erreurs de serveur Qloo
+        const errorMessage = error.message.toLowerCase();
+        return errorMessage.includes('api key') ||
+               errorMessage.includes('authentication') ||
+               errorMessage.includes('quota') ||
+               errorMessage.includes('500') || // Erreur serveur générique
+               errorMessage.includes('502') ||
+               errorMessage.includes('503') ||
+               errorMessage.includes('504');
     }
-
-    /**
-     * Maps user interests and values from form to Qloo signals
-     * Handles all predefined interests/values and manages unrecognized ones
-     */
-    private mapUserInterestsAndValuesToQlooSignals(
-        interests: string[],
-        values: string[]
-    ): QlooSignals {
-        const signals: QlooSignals = {};
-
-
-
-        // Process interests with enhanced mapping
-        const mappedInterests: string[] = [];
-        const unrecognizedInterests: string[] = [];
-
-        interests.forEach(interest => {
-            const mappedInterest = INTEREST_TO_QLOO_MAP[interest];
-            if (mappedInterest) {
-                // Split multiple tags and add them all
-                mappedInterests.push(...mappedInterest.split(','));
-            } else {
-                unrecognizedInterests.push(interest);
-                // Log unrecognized interest for potential future mapping
-                console.warn(`Intérêt non reconnu dans le mapping Qloo: "${interest}"`);
-            }
-        });
-
-        // Process values with enhanced mapping
-        const mappedValues: string[] = [];
-        const unrecognizedValues: string[] = [];
-
-        values.forEach(value => {
-            const mappedValue = VALUE_TO_QLOO_MAP[value];
-            if (mappedValue) {
-                // Split multiple tags and add them all
-                mappedValues.push(...mappedValue.split(','));
-            } else {
-                unrecognizedValues.push(value);
-                // Log unrecognized value for potential future mapping
-                console.warn(`Valeur non reconnue dans le mapping Qloo: "${value}"`);
-            }
-        });
-
-        // Combine mapped signals with priority weighting
-        // Interests get higher priority as they're more specific to content preferences
-        const prioritizedTags = [
-            ...mappedInterests.map(tag => ({ tag, priority: 2 })),
-            ...mappedValues.map(tag => ({ tag, priority: 1 }))
-        ];
-
-        // Handle unrecognized interests/values by attempting generic mapping
-        const genericMappedTags = this.handleUnrecognizedTerms([...unrecognizedInterests, ...unrecognizedValues]);
-        prioritizedTags.push(...genericMappedTags.map(tag => ({ tag, priority: 0.5 })));
-
-        // Sort by priority and remove duplicates
-        const sortedTags = prioritizedTags
-            .sort((a, b) => b.priority - a.priority)
-            .map(item => item.tag);
-
-        const uniqueTags = Array.from(new Set(sortedTags)).slice(0, 12); // Increased limit for better targeting
-
-        if (uniqueTags.length > 0) {
-            signals['signal.interests.tags'] = uniqueTags.join(',');
-        }
-
-        // Add metadata about mapping success for debugging and monitoring
-        const mappingMetadata = {
-            originalInterests: interests,
-            originalValues: values,
-            mappedInterests: mappedInterests,
-            mappedValues: mappedValues,
-            unrecognizedInterests,
-            unrecognizedValues,
-            finalSignals: uniqueTags,
-            mappingSuccessRate: {
-                interests: interests.length > 0 ? (interests.length - unrecognizedInterests.length) / interests.length : 1,
-                values: values.length > 0 ? (values.length - unrecognizedValues.length) / values.length : 1,
-                overall: (interests.length + values.length) > 0 ?
-                    ((interests.length + values.length) - (unrecognizedInterests.length + unrecognizedValues.length)) / (interests.length + values.length) : 1
-            }
-        };
-
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Mapping Qloo signals:', mappingMetadata);
-        }
-
-        // Store mapping metadata for potential analytics/monitoring
-        if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-                const existingMetadata = JSON.parse(localStorage.getItem('qloo_mapping_metadata') || '[]');
-                existingMetadata.push({
-                    timestamp: new Date().toISOString(),
-                    ...mappingMetadata
-                });
-                // Keep only last 10 mappings to avoid storage bloat
-                localStorage.setItem('qloo_mapping_metadata', JSON.stringify(existingMetadata.slice(-10)));
-            } catch (error) {
-                // Ignore localStorage errors
-            }
-        }
-
-        return signals;
-    }
-
-    /**
-     * Handles unrecognized interests/values by attempting generic mapping
-     * Uses comprehensive keyword matching, semantic analysis, and fallback strategies
-     */
-    private handleUnrecognizedTerms(unrecognizedTerms: string[]): string[] {
-        if (unrecognizedTerms.length === 0) return [];
-
-        const genericMappings: string[] = [];
-
-        // Use imported keyword mapping for unrecognized terms
-
-        // Process each unrecognized term
-        unrecognizedTerms.forEach(term => {
-            const lowerTerm = term.toLowerCase().trim();
-            let termMapped = false;
-
-            // Direct keyword matching
-            for (const [keyword, mappings] of Object.entries(KEYWORD_TO_QLOO_MAP)) {
-                if (lowerTerm.includes(keyword) || keyword.includes(lowerTerm)) {
-                    genericMappings.push(...mappings);
-                    console.log(`Mapping générique trouvé: "${term}" -> [${mappings.join(', ')}] via "${keyword}"`);
-                    termMapped = true;
-                    break;
-                }
-            }
-
-            // If no direct match, try partial matching for compound terms
-            if (!termMapped && lowerTerm.length > 3) {
-                const words = lowerTerm.split(/[\s\-_]+/);
-                words.forEach(word => {
-                    if (word.length > 2) {
-                        for (const [keyword, mappings] of Object.entries(KEYWORD_TO_QLOO_MAP)) {
-                            if (word.includes(keyword) || keyword.includes(word)) {
-                                genericMappings.push(...mappings);
-                                console.log(`Mapping partiel trouvé: "${term}" (mot: "${word}") -> [${mappings.join(', ')}] via "${keyword}"`);
-                                termMapped = true;
-                                break;
-                            }
-                        }
-                    }
-                });
-            }
-
-            // If still no match, apply fallback strategy based on term characteristics
-            if (!termMapped) {
-                const fallbackMapping = this.getFallbackMappingForTerm(term);
-                if (fallbackMapping.length > 0) {
-                    genericMappings.push(...fallbackMapping);
-                    console.log(`Mapping de fallback appliqué: "${term}" -> [${fallbackMapping.join(', ')}]`);
-                }
-            }
-        });
-
-        // Remove duplicates and return
-        const uniqueMappings = Array.from(new Set(genericMappings));
-
-        // Log summary for monitoring
-        if (process.env.NODE_ENV === 'development' && unrecognizedTerms.length > 0) {
-            console.log(`Traitement des termes non reconnus: ${unrecognizedTerms.length} termes, ${uniqueMappings.length} mappings générés`);
-        }
-
-        return uniqueMappings;
-    }
-
-    /**
-     * Provides fallback mapping for terms that couldn't be matched through keywords
-     * Uses heuristics based on term characteristics
-     */
-    private getFallbackMappingForTerm(term: string): string[] {
-        const lowerTerm = term.toLowerCase().trim();
-        const fallbackMappings: string[] = [];
-
-        // Heuristic-based fallback mapping
-        if (lowerTerm.length < 3) {
-            return []; // Too short to meaningfully map
-        }
-
-        // Use imported fallback patterns
-
-        // Apply pattern matching
-        for (const [pattern, mappings] of Object.entries(FALLBACK_PATTERNS)) {
-            const regex = new RegExp(pattern, 'i');
-            if (regex.test(lowerTerm)) {
-                fallbackMappings.push(...mappings);
-                break; // Use first matching pattern
-            }
-        }
-
-        // If no pattern matches, provide generic lifestyle mapping for reasonable-length terms
-        if (fallbackMappings.length === 0 && lowerTerm.length >= 4 && lowerTerm.length <= 20) {
-            fallbackMappings.push('lifestyle');
-        }
-
-        return fallbackMappings;
-    }
-
-    /**
-     * Fetches cultural data for all categories with signals
-     */
-    private async fetchAllCulturalCategories(
-        age: number,
-        location?: string,
-        signals?: QlooSignals
-    ): Promise<EnrichedCulturalData> {
-        const categories = ['music', 'movies', 'tv', 'books', 'brands', 'restaurants', 'travel', 'fashion', 'beauty', 'food'];
-        const results = new Map<string, CulturalCategory>();
-
-        // Process in batches to respect API limits
-        const batchSize = 3;
-        let totalApiCalls = 0;
-        let cacheHits = 0;
-
-        for (let i = 0; i < categories.length; i += batchSize) {
-            const batch = categories.slice(i, i + batchSize);
-
-            const batchPromises = batch.map(async category => {
-                try {
-                    const data = await this.fetchDataWithSignals(category, age, location, signals);
-                    totalApiCalls++;
-                    return { category, data, source: 'qloo' as const };
-                } catch (error) {
-                    console.warn(`Fallback pour ${category}:`, error);
-                    cacheHits++;
-                    return {
-                        category,
-                        data: this.getFallbackDataForType(category),
-                        source: 'fallback' as const
-                    };
-                }
-            });
-
-            const batchResults = await Promise.all(batchPromises);
-            batchResults.forEach(({ category, data, source }) => {
-                results.set(category, {
-                    name: category,
-                    items: data,
-                    relevanceScore: source === 'qloo' ? 85 : 60,
-                    source
-                });
-            });
-
-            // Delay between batches
-            if (i + batchSize < categories.length) {
-                await this.sleep(300);
-            }
-        }
-
-        return this.buildEnrichedCulturalData(results, age, location, totalApiCalls, cacheHits);
-    }
-
-    /**
-     * Fetches data with enhanced signals support
-     * Integrates interest/value signals with demographic data
-     */
-    private async fetchDataWithSignals(
-        entityType: string,
-        age: number,
-        location?: string,
-        signals?: QlooSignals
-    ): Promise<string[]> {
-        // Create cache key that includes signals for proper caching
-        const signalsKey = signals ? Object.entries(signals).map(([k, v]) => `${k}:${v}`).join('|') : 'none';
-        const cacheKey = `${entityType}_${age}_${location || 'none'}_signals_${signalsKey}`;
-
-        // Check cache first
-        const cached = this.cache.get(cacheKey);
-        if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-            return cached.data;
-        }
-
-        const result = await this.makeRequestWithRetry(async () => {
-            const mappedEntityType = this.mapEntityType(entityType);
-            const params: Record<string, any> = {};
-
-            // Always provide demographic signal (required by API)
-            if (age) {
-                const ageRange = this.getAgeRange(age);
-                params['signal.demographics.audiences'] = ageRange;
-            } else {
-                params['signal.demographics.audiences'] = 'millennials';
-            }
-
-            // Add location if available
-            if (location) {
-                params['signal.demographics.location'] = this.normalizeLocation(location);
-            }
-
-            // Add all signals from the mapping
-            if (signals) {
-                Object.entries(signals).forEach(([key, value]) => {
-                    if (value && value.trim()) {
-                        params[key] = value;
-                    }
-                });
-            }
-
-            // Build validated URL with all parameters
-            const url = this.buildValidatedUrl(entityType, params, 3);
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-            try {
                 const response = await fetch(url, {
                     method: 'GET',
                     headers: {
@@ -632,16 +326,16 @@ export class QlooClient {
      */
     private generateFallbackCulturalData(userProfile: UserProfileForCulturalData): CulturalDataForPrompt {
         return {
-            music: this.getFallbackDataForType('music'),
-            movies: this.getFallbackDataForType('movie'),
-            tv: this.getFallbackDataForType('tv'),
-            books: this.getFallbackDataForType('book'),
-            brands: this.getFallbackDataForType('brand'),
-            restaurants: this.getFallbackDataForType('restaurant'),
-            travel: this.getFallbackDataForType('travel'),
-            fashion: this.getFallbackDataForType('fashion'),
-            beauty: this.getFallbackDataForType('beauty'),
-            food: this.getFallbackDataForType('food'),
+            music: this.getStaticCulturalData("music"),
+            movies: this.getStaticCulturalData("movies"),
+            tv: this.getStaticCulturalData("tv"),
+            books: this.getStaticCulturalData("books"),
+            brands: this.getStaticCulturalData("brands"),
+            restaurants: this.getStaticCulturalData("restaurants"),
+            travel: this.getStaticCulturalData("travel"),
+            fashion: this.getStaticCulturalData("fashion"),
+            beauty: this.getStaticCulturalData("beauty"),
+            food: this.getStaticCulturalData("food"),
             socialMediaPreferences: {
                 platforms: this.getSocialMediaByProfile(userProfile.age),
                 contentTypes: this.inferContentTypes(userProfile.interests),
@@ -653,6 +347,11 @@ export class QlooClient {
                 coreValues: userProfile.values.slice(0, 3)
             }
         };
+    }
+
+    private getStaticCulturalData(category: string): string[] {
+        // Utilise une carte de données de fallback prédéfinies
+        return FALLBACK_DATA_MAP[category] || [];
     }
 
     /**

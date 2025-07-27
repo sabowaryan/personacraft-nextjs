@@ -1,5 +1,43 @@
 Crée {{personaCount}} personas marketing pour: "{{brief}}"
 
+## Contexte Culturel (données Qloo)
+
+### Préférences Musicales
+{{culturalData.music}}
+
+### Films et Séries Préférés
+{{culturalData.movies}}
+{{culturalData.tv}}
+
+### Livres Appréciés
+{{culturalData.books}}
+
+### Marques Appréciées
+{{culturalData.brands}}
+
+### Restaurants Préférés
+{{culturalData.restaurants}}
+
+### Destinations de Voyage
+{{culturalData.travel}}
+
+### Intérêts Mode
+{{culturalData.fashion}}
+
+### Produits de Beauté
+{{culturalData.beauty}}
+
+### Préférences Alimentaires
+{{culturalData.food}}
+
+### Plateformes Sociales
+{{culturalData.socialMediaPreferences.platforms}}
+
+### Insights Démographiques
+- Groupe d'âge : {{culturalData.demographicInsights.ageGroup}}
+- Intérêts principaux : {{culturalData.demographicInsights.primaryInterests}}
+- Valeurs fondamentales : {{culturalData.demographicInsights.coreValues}}
+
 Format JSON requis (réponse directe):
 [{
   "name": "Prénom Nom",
@@ -17,3 +55,4 @@ Format JSON requis (réponse directe):
 }]
 
 Réponds SEULEMENT avec le JSON.
+

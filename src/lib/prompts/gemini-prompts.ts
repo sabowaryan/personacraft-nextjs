@@ -81,6 +81,7 @@ export class PromptManager {
     static async buildPrompt(
         template: PromptTemplate,
         brief: string,
+        culturalData: CulturalDataForPrompt | null = null,
         variables: Partial<typeof DEFAULT_PROMPT_VARIABLES> = {}
     ): Promise<string> {
         const finalVariables = { ...DEFAULT_PROMPT_VARIABLES, ...variables };
@@ -94,6 +95,34 @@ export class PromptManager {
 
         // Remplacer le brief
         prompt = prompt.replace(/\{\{brief\}\}/g, brief);
+
+        // Remplacer les données culturelles si disponibles
+        if (culturalData) {
+            Object.entries(culturalData).forEach(([category, items]) => {
+                if (Array.isArray(items)) {
+                    // Pour les catégories comme music, movies, etc.
+                    const regex = new RegExp(`\\{\\{culturalData\\.${category}\\}\\}`, 'g');
+                    prompt = prompt.replace(regex, items.join(', '));
+                } else if (typeof items === 'object' && items !== null) {
+                    // Pour socialMediaPreferences et demographicInsights
+                    Object.entries(items).forEach(([subCategory, subItems]) => {
+                        if (Array.isArray(subItems)) {
+                            const regex = new RegExp(`\\{\\{culturalData\\.${category}\\.${subCategory}\\}\\}`, 'g');
+                            prompt = prompt.replace(regex, subItems.join(', '));
+                        } else if (typeof subItems === 'object' && subItems !== null) {
+                            // Pour les objets imbriqués comme demographicAlignment
+                            Object.entries(subItems).forEach(([deepCategory, deepItems]) => {
+                                const regex = new RegExp(`\\{\\{culturalData\\.${category}\\.${subCategory}\\.${deepCategory}\\}\\}`, 'g');
+                                prompt = prompt.replace(regex, String(deepItems));
+                            });
+                        } else {
+                            const regex = new RegExp(`\\{\\{culturalData\\.${category}\\.${subCategory}\\}\\}`, 'g');
+                            prompt = prompt.replace(regex, String(subItems));
+                        }
+                    });
+                }
+            });
+        }
 
         // Remplacer toutes les variables
         Object.entries(finalVariables).forEach(([key, value]) => {
